@@ -17,7 +17,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   final _amountController = TextEditingController();
   final _noteController = TextEditingController();
 
-  Payer _payer = Payer.moi;
   ExpenseCategory _category = ExpenseCategory.nourriture;
   DateTime _date = DateTime.now();
   bool _isLoading = false;
@@ -32,8 +31,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   }
 
   Future<void> _save() async {
-    final raw = _amountController.text.replaceAll(' ', '').replaceAll(' ', '');
-    final amount = double.tryParse(raw);
+    final raw = _amountController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    final amount = raw.isEmpty ? null : double.tryParse(raw);
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Veuillez entrer un montant valide')),
@@ -51,7 +50,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               id: '',
               amount: amount,
               category: _category,
-              payer: _payer,
+              payerName: couple.userName ?? 'Moi',
               date: _date,
               note: _noteController.text.trim().isEmpty
                   ? null
@@ -72,8 +71,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final couple = ref.watch(coupleProvider);
-
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
@@ -235,36 +232,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             ),
             const SizedBox(height: 24),
 
-            // ── Qui a payé ? ──────────────────────────────────
-            const Text(
-              'Payé par',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1A1A2E),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                _PayerButton(
-                  label: couple.userName ?? 'Moi',
-                  initial: (couple.userName ?? 'M')[0].toUpperCase(),
-                  isSelected: _payer == Payer.moi,
-                  color: _primary,
-                  onTap: () => setState(() => _payer = Payer.moi),
-                ),
-                const SizedBox(width: 12),
-                _PayerButton(
-                  label: couple.partnerName ?? 'Elle',
-                  initial: (couple.partnerName ?? 'E')[0].toUpperCase(),
-                  isSelected: _payer == Payer.elle,
-                  color: const Color(0xFFAB47BC),
-                  onTap: () => setState(() => _payer = Payer.elle),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 0),
 
             // ── Date ──────────────────────────────────────────
             const Text(
@@ -388,76 +356,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PayerButton extends StatelessWidget {
-  final String label;
-  final String initial;
-  final bool isSelected;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _PayerButton({
-    required this.label,
-    required this.initial,
-    required this.isSelected,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            color: isSelected ? color.withValues(alpha: 0.1) : Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: isSelected ? color : const Color(0xFFE5E7EB),
-              width: isSelected ? 1.5 : 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: isSelected ? color : const Color(0xFFF3F4F6),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(
-                    initial,
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : const Color(0xFF9CA3AF),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight:
-                      isSelected ? FontWeight.w600 : FontWeight.normal,
-                  color: isSelected ? color : const Color(0xFF6B7280),
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );

@@ -249,18 +249,21 @@ class _GradientCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.25),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.account_balance_wallet_rounded,
-                            color: Colors.white,
-                            size: 24,
+                      GestureDetector(
+                        onTap: () => context.go('/settings'),
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.25),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.settings_rounded,
+                              color: Colors.white,
+                              size: 24,
+                            ),
                           ),
                         ),
                       ),
@@ -564,7 +567,7 @@ class _ExpenseTile extends StatelessWidget {
               ),
               const SizedBox(height: 3),
               Text(
-                expense.payer.displayName,
+                expense.payerName,
                 style: const TextStyle(
                   fontSize: 11,
                   color: Color(0xFF9CA3AF),

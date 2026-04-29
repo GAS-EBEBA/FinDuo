@@ -1,41 +1,57 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 
 class Goal {
   final String id;
   final String title;
+  final String? description;
   final double targetAmount;
   final double currentAmount;
-  final DateTime targetDate;
-  final String userId;
+  final DateTime? targetDate;
+  final String coupleId;
+  final int colorValue;
 
-  Goal({
+  const Goal({
     required this.id,
     required this.title,
+    this.description,
     required this.targetAmount,
     required this.currentAmount,
-    required this.targetDate,
-    required this.userId,
+    this.targetDate,
+    required this.coupleId,
+    required this.colorValue,
   });
+
+  Color get color => Color(colorValue);
+  double get progress =>
+      targetAmount > 0 ? (currentAmount / targetAmount).clamp(0.0, 1.0) : 0.0;
+  double get remaining =>
+      (targetAmount - currentAmount).clamp(0, double.infinity);
 
   factory Goal.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return Goal(
       id: doc.id,
-      title: data['title'],
-      targetAmount: data['targetAmount']?.toDouble() ?? 0.0,
-      currentAmount: data['currentAmount']?.toDouble() ?? 0.0,
-      targetDate: (data['targetDate'] as Timestamp).toDate(),
-      userId: data['userId'],
+      title: data['title'] as String? ?? '',
+      description: data['description'] as String?,
+      targetAmount: (data['targetAmount'] as num?)?.toDouble() ?? 0.0,
+      currentAmount: (data['currentAmount'] as num?)?.toDouble() ?? 0.0,
+      targetDate: data['targetDate'] != null
+          ? (data['targetDate'] as Timestamp).toDate()
+          : null,
+      coupleId: data['coupleId'] as String? ?? '',
+      colorValue: data['colorValue'] as int? ?? 0xFF6C63FF,
     );
   }
 
-  Map<String, dynamic> toFirestore() {
-    return {
-      'title': title,
-      'targetAmount': targetAmount,
-      'currentAmount': currentAmount,
-      'targetDate': Timestamp.fromDate(targetDate),
-      'userId': userId,
-    };
-  }
+  Map<String, dynamic> toFirestore() => {
+        'title': title,
+        'description': description,
+        'targetAmount': targetAmount,
+        'currentAmount': currentAmount,
+        'targetDate':
+            targetDate != null ? Timestamp.fromDate(targetDate!) : null,
+        'coupleId': coupleId,
+        'colorValue': colorValue,
+      };
 }

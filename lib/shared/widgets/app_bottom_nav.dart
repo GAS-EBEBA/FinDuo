@@ -12,8 +12,8 @@ class AppBottomNav extends StatelessWidget {
     switch (index) {
       case 0: context.go('/dashboard');
       case 1: context.go('/history');
-      case 2: context.go('/stats');
-      case 3: context.go('/settings');
+      case 2: context.go('/goals');
+      case 3: context.go('/stats');
     }
   }
 
@@ -77,14 +77,14 @@ class AppBottomNav extends StatelessWidget {
                 ),
               ),
               _NavItem(
-                icon: Icons.bar_chart_rounded,
-                label: 'Stats',
+                icon: Icons.rocket_launch_rounded,
+                label: 'Projets',
                 isSelected: currentIndex == 2,
                 onTap: () => _onTap(context, 2),
               ),
               _NavItem(
-                icon: Icons.settings_rounded,
-                label: 'Paramètres',
+                icon: Icons.bar_chart_rounded,
+                label: 'Stats',
                 isSelected: currentIndex == 3,
                 onTap: () => _onTap(context, 3),
               ),

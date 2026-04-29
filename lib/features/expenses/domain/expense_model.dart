@@ -31,19 +31,11 @@ enum ExpenseCategory {
       };
 }
 
-enum Payer {
-  moi('Moi'),
-  elle('Elle');
-
-  const Payer(this.displayName);
-  final String displayName;
-}
-
 class Expense {
   final String id;
   final double amount;
   final ExpenseCategory category;
-  final Payer payer;
+  final String payerName;
   final DateTime date;
   final String? note;
   final String userId;
@@ -52,7 +44,7 @@ class Expense {
     required this.id,
     required this.amount,
     required this.category,
-    required this.payer,
+    required this.payerName,
     required this.date,
     this.note,
     required this.userId,
@@ -67,10 +59,7 @@ class Expense {
         (e) => e.name == data['category'],
         orElse: () => ExpenseCategory.autres,
       ),
-      payer: Payer.values.firstWhere(
-        (e) => e.name == data['payer'],
-        orElse: () => Payer.moi,
-      ),
+      payerName: data['payerName'] as String? ?? 'Moi',
       date: (data['date'] as Timestamp).toDate(),
       note: data['note'],
       userId: data['userId'] ?? '',
@@ -80,7 +69,7 @@ class Expense {
   Map<String, dynamic> toFirestore() => {
         'amount': amount,
         'category': category.name,
-        'payer': payer.name,
+        'payerName': payerName,
         'date': Timestamp.fromDate(date),
         'note': note,
         'userId': userId,

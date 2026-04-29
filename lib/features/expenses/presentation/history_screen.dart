@@ -390,7 +390,7 @@ class _Tile extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  expense.payer.displayName,
+                  expense.payerName,
                   style: const TextStyle(
                     fontSize: 11,
                     color: Color(0xFF9CA3AF),

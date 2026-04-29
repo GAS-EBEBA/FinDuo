@@ -19,18 +19,25 @@ class StatsScreen extends ConsumerWidget {
           loading: () =>
               const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('Erreur: $e')),
-          data: (expenses) => _Body(expenses: expenses),
+          data: (expenses) => StatsContent(expenses: expenses),
         ),
       ),
-      bottomNavigationBar: const AppBottomNav(currentIndex: 2),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 3),
     );
   }
 }
 
-class _Body extends StatelessWidget {
+class StatsContent extends StatelessWidget {
   final List<Expense> expenses;
+  final bool shrinkWrap;
+  final ScrollPhysics? physics;
 
-  const _Body({required this.expenses});
+  const StatsContent({
+    super.key,
+    required this.expenses,
+    this.shrinkWrap = false,
+    this.physics,
+  });
 
   static final _fmt = NumberFormat.decimalPattern('fr_FR');
   static String _f(double v) => '${_fmt.format(v.toInt())} FCFA';
@@ -74,6 +81,8 @@ class _Body extends StatelessWidget {
         : byDay.values.reduce((a, b) => a > b ? a : b);
 
     return ListView(
+      shrinkWrap: shrinkWrap,
+      physics: physics,
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
       children: [
         // ── Titre ───────────────────────────────────────────
