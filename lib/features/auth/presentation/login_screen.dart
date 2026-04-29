@@ -306,7 +306,11 @@ class _AppLogo extends StatelessWidget {
         ],
       ),
       child: const Center(
-        child: Text('💑', style: TextStyle(fontSize: 36)),
+        child: Icon(
+          Icons.account_balance_wallet_rounded,
+          color: Colors.white,
+          size: 38,
+        ),
       ),
     );
   }

@@ -258,7 +258,7 @@ class _GradientCard extends StatelessWidget {
                         ),
                         child: const Center(
                           child: Icon(
-                            Icons.person_rounded,
+                            Icons.account_balance_wallet_rounded,
                             color: Colors.white,
                             size: 24,
                           ),
