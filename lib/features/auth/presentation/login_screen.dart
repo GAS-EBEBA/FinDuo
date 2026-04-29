@@ -244,7 +244,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         ),
         const SizedBox(height: 8),
         Text(
-          'Gérez vos dépenses à deux\nen toute simplicité',
+          'Gérez vos dépenses à deux\nen toute simplicité.',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 15, color: Colors.grey[500], height: 1.5),
         ),
