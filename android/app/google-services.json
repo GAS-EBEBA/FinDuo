@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "418444900923",
+    "project_id": "gestionbudget-97bbe",
+    "storage_bucket": "gestionbudget-97bbe.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:418444900923:android:f509e394f942c26496ba1e",
+        "android_client_info": {
+          "package_name": "com.example.gestionbudget"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAYawKvqUGFeVFL7JNDPTZ9DdvR8_2dTUQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
