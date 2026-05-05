@@ -1,5 +1,5 @@
 class AppStrings {
-  static const String appTitle = 'Notre Budget';
+  static const String appTitle = 'FinDuo';
   static const String loginWithGoogle = 'Continuer avec Google';
   static const String login = 'Se connecter';
   static const String addExpense = 'Ajouter dépense';

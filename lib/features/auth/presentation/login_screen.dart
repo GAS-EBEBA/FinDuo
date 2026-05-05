@@ -234,7 +234,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     return Column(
       children: [
         Text(
-          'Notre Budget',
+          'FinDuo',
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w600,
@@ -291,11 +291,6 @@ class _AppLogo extends StatelessWidget {
       width: 76,
       height: 76,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF6C63FF), Color(0xFF9C95FF)],
-        ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -305,11 +300,11 @@ class _AppLogo extends StatelessWidget {
           ),
         ],
       ),
-      child: const Center(
-        child: Icon(
-          Icons.account_balance_wallet_rounded,
-          color: Colors.white,
-          size: 38,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Image.asset(
+          'assets/images/finduo.png',
+          fit: BoxFit.cover,
         ),
       ),
     );
