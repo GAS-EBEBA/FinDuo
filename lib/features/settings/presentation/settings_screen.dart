@@ -46,7 +46,9 @@ class SettingsScreen extends ConsumerWidget {
               child: Row(
                 children: [
                   _ProfileAvatar(
-                    initial: userName[0].toUpperCase(),
+                    initial: userName.isNotEmpty
+                        ? userName[0].toUpperCase()
+                        : '?',
                     name: userName,
                     label: 'Moi',
                   ),
