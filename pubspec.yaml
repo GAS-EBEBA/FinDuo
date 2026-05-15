@@ -40,6 +40,7 @@ dependencies:
   go_router: ^17.2.2
   cloud_firestore: ^6.3.0
   intl: ^0.20.2
+  connectivity_plus: ^6.1.1
 
 dev_dependencies:
   flutter_test:

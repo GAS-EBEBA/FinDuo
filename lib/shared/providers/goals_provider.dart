@@ -52,14 +52,10 @@ class GoalsNotifier extends AsyncNotifier<void> {
   }
 
   Future<void> addFunds(String goalId, double amount) async {
-    final ref =
-        FirebaseFirestore.instance.collection('goals').doc(goalId);
-    await FirebaseFirestore.instance.runTransaction((tx) async {
-      final doc = await tx.get(ref);
-      final current =
-          (doc.data()?['currentAmount'] as num?)?.toDouble() ?? 0.0;
-      tx.update(ref, {'currentAmount': current + amount});
-    });
+    await FirebaseFirestore.instance
+        .collection('goals')
+        .doc(goalId)
+        .update({'currentAmount': FieldValue.increment(amount)});
   }
 
   Future<void> deleteGoal(String goalId) async {
