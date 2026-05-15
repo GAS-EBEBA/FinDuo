@@ -11,9 +11,9 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final couple = ref.watch(coupleProvider);
-    final userName = couple.userName ?? 'Moi';
-    final partnerName = couple.partnerName;
+    final couple      = ref.watch(coupleProvider);
+    final userName    = couple.userName ?? 'Moi';
+    final partnerName = ref.watch(partnerNameProvider).asData?.value;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),

@@ -14,6 +14,31 @@ final coupleFutureProvider = FutureProvider<String?>((ref) async {
   return doc.data()?['coupleId'] as String?;
 });
 
+/// Nom du partenaire, récupéré en temps réel depuis Firestore.
+final partnerNameProvider = StreamProvider<String?>((ref) {
+  final coupleId   = ref.watch(coupleFutureProvider).asData?.value;
+  final currentUid = ref.watch(coupleProvider.select((s) => s.userId));
+  if (coupleId == null || currentUid == null) return Stream.value(null);
+
+  return FirebaseFirestore.instance
+      .collection('couples')
+      .doc(coupleId)
+      .snapshots()
+      .asyncMap((coupleDoc) async {
+        final data = coupleDoc.data();
+        if (data == null) return null;
+        final creatorId  = data['creatorId'] as String?;
+        final partnerId  = data['partnerId'] as String?;
+        final partnerUid = creatorId == currentUid ? partnerId : creatorId;
+        if (partnerUid == null) return null;
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(partnerUid)
+            .get();
+        return userDoc.data()?['displayName'] as String?;
+      });
+});
+
 /// Budget mensuel du couple, en temps réel depuis Firestore.
 final budgetStreamProvider = StreamProvider<double>((ref) {
   final coupleId = ref.watch(coupleFutureProvider).asData?.value;

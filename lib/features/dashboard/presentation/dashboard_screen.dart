@@ -25,6 +25,7 @@ class DashboardScreen extends ConsumerWidget {
     final budgetAsync   = ref.watch(budgetStreamProvider);
     final couple        = ref.watch(coupleProvider);
     final coupleId      = ref.watch(coupleFutureProvider).asData?.value;
+    final partnerName   = ref.watch(partnerNameProvider).asData?.value;
     final budget        = budgetAsync.asData?.value ?? 0.0;
 
     return Scaffold(
@@ -37,7 +38,7 @@ class DashboardScreen extends ConsumerWidget {
         data: (expenses) => _Body(
           expenses: expenses,
           userName: couple.userName ?? 'toi',
-          partnerName: couple.partnerName,
+          partnerName: partnerName,
           budget: budget,
           coupleId: coupleId,
         ),
