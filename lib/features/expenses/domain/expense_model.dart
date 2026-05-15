@@ -52,17 +52,21 @@ class Expense {
 
   factory Expense.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    final rawDate = data['date'];
+    final date = rawDate is Timestamp
+        ? rawDate.toDate()
+        : DateTime.now();
     return Expense(
       id: doc.id,
-      amount: data['amount']?.toDouble() ?? 0.0,
+      amount: (data['amount'] as num?)?.toDouble() ?? 0.0,
       category: ExpenseCategory.values.firstWhere(
         (e) => e.name == data['category'],
         orElse: () => ExpenseCategory.autres,
       ),
       payerName: data['payerName'] as String? ?? 'Moi',
-      date: (data['date'] as Timestamp).toDate(),
-      note: data['note'],
-      userId: data['userId'] ?? '',
+      date: date,
+      note: data['note'] as String?,
+      userId: data['userId'] as String? ?? '',
     );
   }
 

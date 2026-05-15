@@ -21,15 +21,46 @@ class DashboardScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      body: expensesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Erreur: $e')),
-        data: (expenses) => _Body(
-          expenses: expenses,
-          userName: couple.userName ?? 'toi',
-          partnerName: couple.partnerName,
-          budget: budget,
-          coupleId: coupleId,
+      body: SafeArea(
+        bottom: false,
+        child: expensesAsync.when(
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: Color(0xFF6C63FF)),
+          ),
+          error: (e, _) => Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.wifi_off_rounded,
+                      size: 48, color: Color(0xFF9CA3AF)),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Impossible de charger les données',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1A1A2E)),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    e.toString(),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        fontSize: 12, color: Color(0xFF9CA3AF)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          data: (expenses) => _Body(
+            expenses: expenses,
+            userName: couple.userName ?? 'toi',
+            partnerName: couple.partnerName,
+            budget: budget,
+            coupleId: coupleId,
+          ),
         ),
       ),
       bottomNavigationBar: const AppBottomNav(currentIndex: 0),
@@ -339,8 +370,13 @@ class _GradientCard extends StatelessWidget {
                       // Avatars
                       Row(
                         children: [
-                          _Avatar(initial: userName[0].toUpperCase(), offset: 0),
-                          if (partnerName != null)
+                          _Avatar(
+                            initial: userName.isNotEmpty
+                                ? userName[0].toUpperCase()
+                                : '?',
+                            offset: 0,
+                          ),
+                          if (partnerName != null && partnerName!.isNotEmpty)
                             _Avatar(
                               initial: partnerName![0].toUpperCase(),
                               offset: -10,

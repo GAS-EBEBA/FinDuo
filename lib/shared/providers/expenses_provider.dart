@@ -12,7 +12,16 @@ final expensesStreamProvider = StreamProvider<List<Expense>>((ref) {
       .where('userId', isEqualTo: userId)
       .snapshots()
       .map((snap) {
-        final list = snap.docs.map(Expense.fromFirestore).toList();
+        final list = snap.docs
+            .map((doc) {
+              try {
+                return Expense.fromFirestore(doc);
+              } catch (_) {
+                return null;
+              }
+            })
+            .whereType<Expense>()
+            .toList();
         list.sort((a, b) => b.date.compareTo(a.date));
         return list;
       });
