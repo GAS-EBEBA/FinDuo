@@ -356,9 +356,7 @@ class _GoalCard extends StatelessWidget {
             const Icon(Icons.delete_rounded, color: Colors.white),
       ),
       child: GestureDetector(
-        onTap: goal.progress >= 1.0
-            ? () => _showGoalDetail(context, goal)
-            : null,
+        onTap: () => _showGoalDetail(context, goal),
         child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
@@ -1288,7 +1286,14 @@ class _GoalDetailSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final historyAsync = ref.watch(fundingHistoryProvider(goal.id));
-    final surplus = (goal.currentAmount - goal.targetAmount).clamp(0.0, double.infinity);
+    final isCompleted  = goal.progress >= 1.0;
+    final surplus      = (goal.currentAmount - goal.targetAmount).clamp(0.0, double.infinity);
+    final remaining    = goal.remaining;
+
+    final statusColor = isCompleted
+        ? const Color(0xFF22C55E)
+        : goal.color;
+    final statusLabel = isCompleted ? '✓ Terminé' : '● En cours';
 
     return DraggableScrollableSheet(
       initialChildSize: 0.65,
@@ -1340,21 +1345,20 @@ class _GoalDetailSheet extends ConsumerWidget {
                             color: Color(0xFF0F172A),
                           ),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 4),
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF22C55E)
-                                .withValues(alpha: .1),
+                            color: statusColor.withValues(alpha: .1),
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: const Text(
-                            '✓ Terminé',
+                          child: Text(
+                            statusLabel,
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF22C55E),
+                              color: statusColor,
                             ),
                           ),
                         ),
@@ -1376,25 +1380,62 @@ class _GoalDetailSheet extends ConsumerWidget {
                   color: const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Row(
+                child: Column(
                   children: [
-                    _DetailStat(
-                      label: 'Objectif',
-                      value: _f(goal.targetAmount),
-                      color: const Color(0xFF64748B),
+                    Row(
+                      children: [
+                        _DetailStat(
+                          label: 'Objectif',
+                          value: _f(goal.targetAmount),
+                          color: const Color(0xFF64748B),
+                        ),
+                        _DetailStat(
+                          label: 'Épargné',
+                          value: _f(goal.currentAmount),
+                          color: goal.color,
+                        ),
+                        if (isCompleted)
+                          _DetailStat(
+                            label: 'Surplus',
+                            value: surplus > 0 ? '+${_f(surplus)}' : '—',
+                            color: surplus > 0
+                                ? const Color(0xFF22C55E)
+                                : const Color(0xFF94A3B8),
+                          )
+                        else
+                          _DetailStat(
+                            label: 'Restant',
+                            value: _f(remaining),
+                            color: const Color(0xFFF97316),
+                          ),
+                      ],
                     ),
-                    _DetailStat(
-                      label: 'Épargné',
-                      value: _f(goal.currentAmount),
-                      color: goal.color,
-                    ),
-                    _DetailStat(
-                      label: 'Surplus',
-                      value: surplus > 0 ? '+${_f(surplus)}' : '—',
-                      color: surplus > 0
-                          ? const Color(0xFF22C55E)
-                          : const Color(0xFF94A3B8),
-                    ),
+                    if (!isCompleted) ...[
+                      const SizedBox(height: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: LinearProgressIndicator(
+                          value: goal.progress,
+                          minHeight: 7,
+                          backgroundColor:
+                              goal.color.withValues(alpha: .12),
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(goal.color),
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          '${(goal.progress * 100).toStringAsFixed(0)}%',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: goal.color,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
