@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:gestionbudget/features/admin/presentation/admin_screen.dart';
 import 'package:gestionbudget/features/auth/data/auth_service.dart';
 import 'package:gestionbudget/features/auth/presentation/login_screen.dart';
 import 'package:gestionbudget/features/budget/presentation/budget_screen.dart';
@@ -89,6 +90,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/budget',      builder: (_, _) => const BudgetScreen()),
       GoRoute(path: '/goals',       builder: (_, _) => const GoalsScreen()),
       GoRoute(path: '/settings',    builder: (_, _) => const SettingsScreen()),
+      GoRoute(path: '/admin',       builder: (_, _) => const AdminScreen()),
     ],
   );
 });

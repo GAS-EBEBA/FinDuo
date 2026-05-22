@@ -1,5 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:gestionbudget/core/constants/admin_config.dart';
 import 'package:gestionbudget/features/auth/data/auth_service.dart';
 import 'package:gestionbudget/shared/providers/couple_provider.dart';
 import 'package:gestionbudget/shared/widgets/app_bottom_nav.dart';
@@ -14,6 +17,7 @@ class SettingsScreen extends ConsumerWidget {
     final couple      = ref.watch(coupleProvider);
     final userName    = couple.userName ?? 'Moi';
     final partnerName = ref.watch(partnerNameProvider).asData?.value;
+    final isAdmin     = FirebaseAuth.instance.currentUser?.email == AdminConfig.adminEmail;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -130,6 +134,23 @@ class SettingsScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 20),
+
+            // ── Section Admin (visible uniquement pour l'admin) ─
+            if (isAdmin) ...[
+              _SectionLabel(label: 'Administration'),
+              const SizedBox(height: 10),
+              _SettingsCard(
+                children: [
+                  _SettingsTile(
+                    icon: Icons.admin_panel_settings_rounded,
+                    iconColor: const Color(0xFF6C63FF),
+                    title: 'Gérer les licences',
+                    onTap: () => context.push('/admin'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+            ],
 
             // ── Déconnexion ───────────────────────────────────
             _SettingsCard(
