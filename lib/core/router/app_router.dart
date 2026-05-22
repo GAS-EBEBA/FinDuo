@@ -1,6 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:gestionbudget/core/constants/admin_config.dart';
 import 'package:gestionbudget/features/admin/presentation/admin_screen.dart';
 import 'package:gestionbudget/features/auth/data/auth_service.dart';
 import 'package:gestionbudget/features/auth/presentation/login_screen.dart';
@@ -31,6 +33,7 @@ class _RouterNotifier extends ChangeNotifier {
   bool    get isLoggedIn      => _ref.read(authStateProvider).asData?.value != null;
   String? get coupleId        => _ref.read(coupleFutureProvider).asData?.value;
   bool    get hasLicense      => _ref.read(licenseStreamProvider).asData?.value ?? false;
+  bool    get isAdmin         => FirebaseAuth.instance.currentUser?.email == AdminConfig.adminEmail;
 
   String? redirect(String location) {
     if (_authLoading) return null;
@@ -44,6 +47,7 @@ class _RouterNotifier extends ChangeNotifier {
     if (location == '/login') {
       if (_coupleLoading) return null;
       if (coupleId == null) return '/onboarding';
+      if (isAdmin) return '/dashboard';
       if (_licenseLoading) return null;
       return hasLicense ? '/dashboard' : '/license';
     }
@@ -53,6 +57,12 @@ class _RouterNotifier extends ChangeNotifier {
     // Pas de couple → onboarding
     if (coupleId == null) {
       return location == '/onboarding' ? null : '/onboarding';
+    }
+
+    // L'admin bypass la vérification de licence
+    if (isAdmin) {
+      if (location == '/license' || location == '/onboarding') return '/dashboard';
+      return null;
     }
 
     if (_licenseLoading) return null;
