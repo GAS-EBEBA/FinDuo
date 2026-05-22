@@ -55,29 +55,26 @@ class _LicenseScreenState extends ConsumerState<LicenseScreen> {
             children: [
               const SizedBox(height: 32),
 
-              // ── Illustration ────────────────────────────────
+              // ── Logo ────────────────────────────────────────
               Container(
-                width: 96,
-                height: 96,
+                width: 110,
+                height: 110,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF5B52EE), Color(0xFF8B85FF)],
-                  ),
                   borderRadius: BorderRadius.circular(28),
                   boxShadow: [
                     BoxShadow(
-                      color: _kPrimary.withValues(alpha: .3),
+                      color: _kPrimary.withValues(alpha: .25),
                       blurRadius: 24,
                       offset: const Offset(0, 8),
                     ),
                   ],
                 ),
-                child: const Icon(
-                  Icons.verified_rounded,
-                  color: Colors.white,
-                  size: 48,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(28),
+                  child: Image.asset(
+                    'assets/images/finduo.png',
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
               const SizedBox(height: 32),
