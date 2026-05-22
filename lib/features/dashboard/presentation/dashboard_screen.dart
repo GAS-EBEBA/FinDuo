@@ -7,14 +7,13 @@ import 'package:gestionbudget/shared/providers/couple_provider.dart';
 import 'package:gestionbudget/shared/providers/expenses_provider.dart';
 import 'package:gestionbudget/shared/widgets/app_bottom_nav.dart';
 
-const _kPrimary   = Color(0xFF6C63FF);
-const _kPrimary2  = Color(0xFF8B85FF);
-const _kBg        = Color(0xFFF5F7FA);
-const _kCard      = Colors.white;
-const _kTextDark  = Color(0xFF0F172A);
-const _kTextGray  = Color(0xFF94A3B8);
-const _kGreen     = Color(0xFF22C55E);
-const _kOrange    = Color(0xFFF97316);
+const _kPrimary = Color(0xFF5B52EE);
+const _kBg       = Color(0xFFF5F7FA);
+const _kCard     = Colors.white;
+const _kDark     = Color(0xFF0F172A);
+const _kGray     = Color(0xFF94A3B8);
+const _kGreen    = Color(0xFF22C55E);
+const _kOrange   = Color(0xFFF97316);
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -30,17 +29,20 @@ class DashboardScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: _kBg,
-      body: expensesAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: _kPrimary),
-        ),
-        error: (e, _) => _ErrorBody(message: e.toString()),
-        data: (expenses) => _Body(
-          expenses: expenses,
-          userName: couple.userName ?? 'toi',
-          partnerName: partnerName,
-          budget: budget,
-          coupleId: coupleId,
+      body: SafeArea(
+        bottom: false,
+        child: expensesAsync.when(
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: _kPrimary),
+          ),
+          error: (e, _) => _ErrorBody(message: e.toString()),
+          data: (expenses) => _Body(
+            expenses: expenses,
+            userName: couple.userName ?? 'toi',
+            partnerName: partnerName,
+            budget: budget,
+            coupleId: coupleId,
+          ),
         ),
       ),
       bottomNavigationBar: const AppBottomNav(currentIndex: 0),
@@ -63,9 +65,6 @@ class _Body extends StatelessWidget {
     required this.budget,
     required this.coupleId,
   });
-
-  static final _fmtNum = NumberFormat.decimalPattern('fr_FR');
-  static String _f(double v) => '${_fmtNum.format(v.toInt())} FCFA';
 
   double get _totalMonth {
     final start = DateTime(DateTime.now().year, DateTime.now().month, 1);
@@ -95,11 +94,12 @@ class _Body extends StatelessWidget {
     final total     = _totalMonth;
     final remaining = (budget - total).clamp(0.0, double.infinity);
     final progress  = budget > 0 ? (total / budget).clamp(0.0, 1.0) : 0.0;
+    final overBudget = total > budget && budget > 0;
 
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
       slivers: [
-        // ── Header ──────────────────────────────────────────────
+        // ── Header gradient ──────────────────────────────────────
         SliverToBoxAdapter(
           child: _Header(
             userName: userName,
@@ -109,37 +109,59 @@ class _Body extends StatelessWidget {
             remaining: remaining,
             progress: progress,
             daysLeft: _daysLeft,
+            todayTotal: _todayTotal,
             coupleId: coupleId,
+            overBudget: overBudget,
           ),
         ),
 
-        // ── Chips résumé ─────────────────────────────────────────
+        // ── Actions rapides ──────────────────────────────────────
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-            child: Row(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _SummaryChip(
-                  icon: Icons.arrow_upward_rounded,
-                  iconBg: _kOrange.withValues(alpha: .12),
-                  iconColor: _kOrange,
-                  label: 'Dépensé ce mois',
-                  value: _f(total),
+                const Text(
+                  'Actions rapides',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: _kDark,
+                  ),
                 ),
-                const SizedBox(width: 12),
-                _SummaryChip(
-                  icon: Icons.today_rounded,
-                  iconBg: _kPrimary.withValues(alpha: .1),
-                  iconColor: _kPrimary,
-                  label: "Aujourd'hui",
-                  value: _f(_todayTotal),
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _QuickAction(
+                      icon: Icons.history_rounded,
+                      label: 'Historique',
+                      onTap: () => context.go('/history'),
+                    ),
+                    _QuickAction(
+                      icon: Icons.bar_chart_rounded,
+                      label: 'Stats',
+                      onTap: () => context.go('/stats'),
+                    ),
+                    _QuickAction(
+                      icon: Icons.account_balance_wallet_rounded,
+                      label: 'Budget',
+                      onTap: () => context.go('/budget'),
+                    ),
+                    _QuickAction(
+                      icon: Icons.flag_rounded,
+                      label: 'Objectifs',
+                      onTap: () => context.go('/goals'),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
         ),
 
-        // ── Titre dépenses récentes ──────────────────────────────
+        // ── Titre transactions récentes ──────────────────────────
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 28, 20, 12),
@@ -149,9 +171,9 @@ class _Body extends StatelessWidget {
                 const Text(
                   'Dépenses récentes',
                   style: TextStyle(
-                    fontSize: 17,
+                    fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: _kTextDark,
+                    color: _kDark,
                   ),
                 ),
                 GestureDetector(
@@ -204,14 +226,14 @@ class _Body extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: _kTextDark,
+                      color: _kDark,
                     ),
                   ),
                   const SizedBox(height: 6),
                   const Text(
                     'Appuie sur + pour ajouter\nta première dépense',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 13, color: _kTextGray),
+                    style: TextStyle(fontSize: 13, color: _kGray),
                   ),
                 ],
               ),
@@ -240,7 +262,9 @@ class _Header extends StatelessWidget {
   final double remaining;
   final double progress;
   final int daysLeft;
+  final double todayTotal;
   final String? coupleId;
+  final bool overBudget;
 
   const _Header({
     required this.userName,
@@ -250,15 +274,19 @@ class _Header extends StatelessWidget {
     required this.remaining,
     required this.progress,
     required this.daysLeft,
+    required this.todayTotal,
     required this.coupleId,
+    required this.overBudget,
   });
 
   static final _fmt = NumberFormat.decimalPattern('fr_FR');
   static String _f(double v) => '${_fmt.format(v.toInt())} F';
 
-  String get _dateLabel {
-    final now = DateTime.now();
-    return DateFormat("EEEE d MMMM", 'fr_FR').format(now);
+  String get _greeting {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Bonjour';
+    if (h < 18) return 'Bon après-midi';
+    return 'Bonsoir';
   }
 
   String _cap(String s) =>
@@ -277,385 +305,287 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusBarH = MediaQuery.of(context).padding.top;
-    final overBudget = spent > budget && budget > 0;
-    final barColor   = overBudget ? _kOrange : _kGreen;
+    final barColor = overBudget ? _kOrange : _kGreen;
 
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF5B52EE), _kPrimary2],
+          colors: [Color(0xFF4C44D4), Color(0xFF7B75F0)],
         ),
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(32),
           bottomRight: Radius.circular(32),
         ),
       ),
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(24, statusBarH + 16, 24, 28),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Top bar ──────────────────────────────────────
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _cap(_dateLabel),
-                        style: const TextStyle(
-                          color: Color(0xAAFFFFFF),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Bonjour ${_cap(userName)} 👋',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                Row(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+      child: Column(
+        children: [
+          // ── Barre top : avatar | salutation | settings ────────
+          Row(
+            children: [
+              // Avatar utilisateur
+              _Avatar(initial: userName.isNotEmpty ? userName[0] : '?'),
+              const SizedBox(width: 12),
+              // Salutation centrée
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Avatars du couple
-                    _MiniAvatar(
-                      initial: userName.isNotEmpty ? userName[0] : '?',
-                      offset: 0,
+                    Text(
+                      '$_greeting !',
+                      style: const TextStyle(
+                        color: Color(0xCCFFFFFF),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w400,
+                      ),
                     ),
-                    if (partnerName != null && partnerName!.isNotEmpty)
-                      _MiniAvatar(
-                        initial: partnerName![0],
-                        offset: -8,
+                    Text(
+                      _cap(userName),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
                       ),
-                    const SizedBox(width: 12),
-                    // Bouton settings
-                    GestureDetector(
-                      onTap: () => context.go('/settings'),
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: .15),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: .2),
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.settings_outlined,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // ── Carte budget ──────────────────────────────────
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: .12),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: .15),
+              ),
+              const SizedBox(width: 12),
+              // Bouton paramètres (droite)
+              GestureDetector(
+                onTap: () => context.go('/settings'),
+                child: Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: .18),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.settings_outlined,
+                    color: Colors.white,
+                    size: 21,
+                  ),
                 ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Budget du mois',
-                        style: TextStyle(
-                          color: Color(0xCCFFFFFF),
-                          fontSize: 13,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => _showBudgetDialog(context),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: .18),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.edit_rounded,
-                                  color: Colors.white, size: 12),
-                              SizedBox(width: 4),
-                              Text(
-                                'Modifier',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    budget == 0 ? 'Définir votre budget →' : _f(budget),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 30,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
+            ],
+          ),
 
-                  // Barre de progression avec labels
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: LinearProgressIndicator(
-                          value: progress,
-                          minHeight: 8,
-                          backgroundColor:
-                              Colors.white.withValues(alpha: .2),
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(barColor),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _BudgetLabel(
-                            icon: Icons.arrow_upward_rounded,
-                            label: 'Dépensé',
-                            value: _f(spent),
-                            color: _kOrange,
-                          ),
-                          _BudgetLabel(
-                            icon: Icons.savings_rounded,
-                            label: 'Restant',
-                            value: _f(remaining),
-                            color: _kGreen,
-                            alignRight: true,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+          const SizedBox(height: 28),
 
-                  // Jours restants
-                  if (budget > 0) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: .1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        '$daysLeft jours restants ce mois',
-                        style: const TextStyle(
-                          color: Color(0xCCFFFFFF),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
+          // ── Zone solde / budget ───────────────────────────────
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Budget du mois',
+              style: TextStyle(
+                color: Color(0xCCFFFFFF),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
               ),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              budget == 0 ? 'Définir un budget →' : _f(budget),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 32,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              budget == 0
+                  ? 'Appuie sur Modifier pour définir ton budget'
+                  : 'Restant : ${_f(remaining)}',
+              style: const TextStyle(
+                color: Color(0xAAFFFFFF),
+                fontSize: 13,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Barre de progression
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 7,
+              backgroundColor: Colors.white.withValues(alpha: .2),
+              valueColor: AlwaysStoppedAnimation<Color>(barColor),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${_f(spent)} dépensé',
+                style: const TextStyle(
+                  color: Color(0xCCFFFFFF),
+                  fontSize: 11,
+                ),
+              ),
+              if (budget > 0)
+                Text(
+                  '$daysLeft j restants',
+                  style: const TextStyle(
+                    color: Color(0xCCFFFFFF),
+                    fontSize: 11,
+                  ),
+                ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // ── Deux boutons d'action ─────────────────────────────
+          Row(
+            children: [
+              Expanded(
+                child: _HeaderButton(
+                  icon: Icons.add_rounded,
+                  label: 'Ajouter',
+                  onTap: () => context.go('/add-expense'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _HeaderButton(
+                  icon: Icons.edit_outlined,
+                  label: 'Modifier budget',
+                  onTap: () => _showBudgetDialog(context),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
 
-class _BudgetLabel extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color color;
-  final bool alignRight;
-
-  const _BudgetLabel({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-    this.alignRight = false,
-  });
+// ── Avatar ─────────────────────────────────────────────────────
+class _Avatar extends StatelessWidget {
+  final String initial;
+  const _Avatar({required this.initial});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment:
-          alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (!alignRight) ...[
-              Icon(icon, size: 11, color: color),
-              const SizedBox(width: 4),
-            ],
-            Text(
-              label,
-              style: const TextStyle(
-                  color: Color(0xAAFFFFFF), fontSize: 11),
-            ),
-            if (alignRight) ...[
-              const SizedBox(width: 4),
-              Icon(icon, size: 11, color: color),
-            ],
-          ],
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: .22),
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white.withValues(alpha: .4), width: 2),
+      ),
+      child: Center(
+        child: Text(
+          initial.toUpperCase(),
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 13,
+            fontSize: 18,
             fontWeight: FontWeight.w700,
           ),
         ),
-      ],
+      ),
     );
   }
 }
 
-class _MiniAvatar extends StatelessWidget {
-  final String initial;
-  final double offset;
-  const _MiniAvatar({required this.initial, required this.offset});
+// ── Bouton dans le header ──────────────────────────────────────
+class _HeaderButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _HeaderButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Transform.translate(
-      offset: Offset(offset, 0),
+    return GestureDetector(
+      onTap: onTap,
       child: Container(
-        width: 36,
-        height: 36,
+        padding: const EdgeInsets.symmetric(vertical: 13),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: .9),
-          shape: BoxShape.circle,
-          border: Border.all(color: _kPrimary, width: 2),
+          color: Colors.white.withValues(alpha: .18),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withValues(alpha: .25)),
         ),
-        child: Center(
-          child: Text(
-            initial.toUpperCase(),
-            style: const TextStyle(
-              color: _kPrimary,
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
 }
 
-// ── Chip résumé ─────────────────────────────────────────────────
-class _SummaryChip extends StatelessWidget {
+// ── Action rapide ──────────────────────────────────────────────
+class _QuickAction extends StatelessWidget {
   final IconData icon;
-  final Color iconBg;
-  final Color iconColor;
   final String label;
-  final String value;
-
-  const _SummaryChip({
+  final VoidCallback onTap;
+  const _QuickAction({
     required this.icon,
-    required this.iconBg,
-    required this.iconColor,
     required this.label,
-    required this.value,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: _kCard,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0A000000),
-              blurRadius: 10,
-              offset: Offset(0, 4),
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: _kPrimary.withValues(alpha: .1),
+              borderRadius: BorderRadius.circular(18),
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: iconBg,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: iconColor, size: 19),
+            child: Icon(icon, color: _kPrimary, size: 26),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: _kDark,
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: _kTextGray,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    value,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: _kTextDark,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -714,7 +644,7 @@ class _ExpenseTile extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: _kTextDark,
+                    color: _kDark,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -722,10 +652,7 @@ class _ExpenseTile extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   DateFormat('d MMM • HH:mm', 'fr_FR').format(expense.date),
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: _kTextGray,
-                  ),
+                  style: const TextStyle(fontSize: 11, color: _kGray),
                 ),
               ],
             ),
@@ -740,7 +667,7 @@ class _ExpenseTile extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: _kTextDark,
+                  color: _kDark,
                 ),
               ),
               const SizedBox(height: 4),
@@ -785,11 +712,11 @@ class _ErrorBody extends StatelessWidget {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: const Color(0xFFF97316).withValues(alpha: .1),
+                color: _kOrange.withValues(alpha: .1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.cloud_off_rounded,
-                  color: Color(0xFFF97316), size: 34),
+                  color: _kOrange, size: 34),
             ),
             const SizedBox(height: 16),
             const Text(
@@ -798,14 +725,14 @@ class _ErrorBody extends StatelessWidget {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: _kTextDark,
+                color: _kDark,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12, color: _kTextGray),
+              style: const TextStyle(fontSize: 12, color: _kGray),
             ),
           ],
         ),
@@ -867,7 +794,7 @@ class _BudgetDialogState extends State<_BudgetDialog> {
         children: [
           const Text(
             'Budget mensuel total du couple',
-            style: TextStyle(color: _kTextGray, fontSize: 13),
+            style: TextStyle(color: _kGray, fontSize: 13),
           ),
           const SizedBox(height: 16),
           TextField(
@@ -895,8 +822,7 @@ class _BudgetDialogState extends State<_BudgetDialog> {
       actions: [
         TextButton(
           onPressed: _saving ? null : () => Navigator.pop(context),
-          child: const Text('Annuler',
-              style: TextStyle(color: _kTextGray)),
+          child: const Text('Annuler', style: TextStyle(color: _kGray)),
         ),
         ElevatedButton(
           onPressed: _saving ? null : _save,
