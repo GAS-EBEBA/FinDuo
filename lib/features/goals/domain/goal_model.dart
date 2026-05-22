@@ -1,6 +1,27 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+class FundingEntry {
+  final String id;
+  final double amount;
+  final DateTime date;
+
+  const FundingEntry({
+    required this.id,
+    required this.amount,
+    required this.date,
+  });
+
+  factory FundingEntry.fromDoc(DocumentSnapshot doc) {
+    final d = doc.data() as Map<String, dynamic>;
+    return FundingEntry(
+      id:     doc.id,
+      amount: (d['amount'] as num?)?.toDouble() ?? 0.0,
+      date:   (d['date'] as Timestamp).toDate(),
+    );
+  }
+}
+
 class Goal {
   final String id;
   final String title;

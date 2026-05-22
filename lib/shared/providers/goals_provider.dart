@@ -4,6 +4,18 @@ import 'package:gestionbudget/features/goals/domain/goal_model.dart';
 import 'package:gestionbudget/features/goals/domain/planned_expense_model.dart';
 import 'package:gestionbudget/shared/providers/couple_provider.dart';
 
+/// Historique des alimentations d'un projet donné, trié par date décroissante.
+final fundingHistoryProvider =
+    StreamProvider.family<List<FundingEntry>, String>((ref, goalId) {
+  return FirebaseFirestore.instance
+      .collection('goals')
+      .doc(goalId)
+      .collection('fundings')
+      .orderBy('date', descending: true)
+      .snapshots()
+      .map((snap) => snap.docs.map(FundingEntry.fromDoc).toList());
+});
+
 final goalsStreamProvider = StreamProvider<List<Goal>>((ref) {
   final coupleId = ref.watch(coupleFutureProvider).asData?.value;
   if (coupleId == null) return Stream.value([]);
@@ -52,10 +64,16 @@ class GoalsNotifier extends AsyncNotifier<void> {
   }
 
   Future<void> addFunds(String goalId, double amount) async {
-    await FirebaseFirestore.instance
-        .collection('goals')
-        .doc(goalId)
-        .update({'currentAmount': FieldValue.increment(amount)});
+    final goalRef = FirebaseFirestore.instance.collection('goals').doc(goalId);
+    final batch = FirebaseFirestore.instance.batch();
+    // Incrémente le montant courant
+    batch.update(goalRef, {'currentAmount': FieldValue.increment(amount)});
+    // Enregistre l'alimentation dans la sous-collection
+    batch.set(goalRef.collection('fundings').doc(), {
+      'amount': amount,
+      'date': FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
   }
 
   Future<void> deleteGoal(String goalId) async {

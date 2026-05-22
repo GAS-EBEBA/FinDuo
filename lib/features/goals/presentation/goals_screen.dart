@@ -8,6 +8,15 @@ import 'package:gestionbudget/shared/providers/couple_provider.dart';
 import 'package:gestionbudget/shared/providers/goals_provider.dart';
 import 'package:gestionbudget/shared/widgets/app_bottom_nav.dart';
 
+void _showGoalDetail(BuildContext context, Goal goal) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => _GoalDetailSheet(goal: goal),
+  );
+}
+
 class GoalsScreen extends ConsumerStatefulWidget {
   const GoalsScreen({super.key});
 
@@ -346,7 +355,11 @@ class _GoalCard extends StatelessWidget {
         child:
             const Icon(Icons.delete_rounded, color: Colors.white),
       ),
-      child: Container(
+      child: GestureDetector(
+        onTap: goal.progress >= 1.0
+            ? () => _showGoalDetail(context, goal)
+            : null,
+        child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -537,6 +550,7 @@ class _GoalCard extends StatelessWidget {
               ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -1257,6 +1271,262 @@ class _AddPlannedExpenseDialogState
               : const Text('Planifier'),
         ),
       ],
+    );
+  }
+}
+
+// ── Fiche détail projet terminé ────────────────────────────────
+
+class _GoalDetailSheet extends ConsumerWidget {
+  final Goal goal;
+  const _GoalDetailSheet({required this.goal});
+
+  static final _fmt    = NumberFormat.decimalPattern('fr_FR');
+  static final _fmtDt  = DateFormat('d MMM yyyy • HH:mm', 'fr_FR');
+  static String _f(double v) => '${_fmt.format(v.toInt())} FCFA';
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final historyAsync = ref.watch(fundingHistoryProvider(goal.id));
+    final surplus = (goal.currentAmount - goal.targetAmount).clamp(0.0, double.infinity);
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.65,
+      maxChildSize: 0.92,
+      minChildSize: 0.4,
+      expand: false,
+      builder: (_, scrollCtrl) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          children: [
+            // ── Poignée ──────────────────────────────────────
+            const SizedBox(height: 12),
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE2E8F0),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // ── En-tête ──────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48, height: 48,
+                    decoration: BoxDecoration(
+                      color: goal.color.withValues(alpha: .15),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(Icons.flag_rounded,
+                        color: goal.color, size: 24),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          goal.title,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF22C55E)
+                                .withValues(alpha: .1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            '✓ Terminé',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF22C55E),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // ── Récapitulatif montants ────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    _DetailStat(
+                      label: 'Objectif',
+                      value: _f(goal.targetAmount),
+                      color: const Color(0xFF64748B),
+                    ),
+                    _DetailStat(
+                      label: 'Épargné',
+                      value: _f(goal.currentAmount),
+                      color: goal.color,
+                    ),
+                    _DetailStat(
+                      label: 'Surplus',
+                      value: surplus > 0 ? '+${_f(surplus)}' : '—',
+                      color: surplus > 0
+                          ? const Color(0xFF22C55E)
+                          : const Color(0xFF94A3B8),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // ── Titre historique ──────────────────────────────
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Historique des alimentations',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // ── Liste ─────────────────────────────────────────
+            Expanded(
+              child: historyAsync.when(
+                loading: () => const Center(
+                    child: CircularProgressIndicator()),
+                error: (e, _) => Center(child: Text('Erreur: $e')),
+                data: (entries) => entries.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'Aucune alimentation enregistrée\n'
+                          '(les futures alimentations apparaîtront ici)',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF94A3B8),
+                              height: 1.6),
+                        ),
+                      )
+                    : ListView.separated(
+                        controller: scrollCtrl,
+                        padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+                        itemCount: entries.length,
+                        separatorBuilder: (context, i) => const Divider(
+                            height: 1, color: Color(0xFFF1F5F9)),
+                        itemBuilder: (_, i) {
+                          final e = entries[i];
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 12),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 36, height: 36,
+                                  decoration: BoxDecoration(
+                                    color: goal.color
+                                        .withValues(alpha: .1),
+                                    borderRadius:
+                                        BorderRadius.circular(10),
+                                  ),
+                                  child: Icon(
+                                    Icons.arrow_downward_rounded,
+                                    color: goal.color, size: 16,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    _fmtDt.format(e.date),
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      color: Color(0xFF475569),
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  '+${_f(e.amount)}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: goal.color,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailStat extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  const _DetailStat({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: const TextStyle(
+                fontSize: 11, color: Color(0xFF94A3B8)),
+          ),
+        ],
+      ),
     );
   }
 }
