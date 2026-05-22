@@ -284,158 +284,132 @@ class _Header extends StatelessWidget {
           bottomRight: Radius.circular(32),
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
       child: Column(
         children: [
           // ── Barre top : avatar | salutation | settings ────────
           Row(
             children: [
-              // Avatar utilisateur
               _Avatar(initial: userName.isNotEmpty ? userName[0] : '?'),
-              const SizedBox(width: 12),
-              // Salutation centrée
+              const SizedBox(width: 10),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      '$_greeting !',
-                      style: const TextStyle(
-                        color: Color(0xCCFFFFFF),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                    Text(
-                      _cap(userName),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+                child: Text(
+                  '$_greeting, ${_cap(userName)} 👋',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                 ),
               ),
-              const SizedBox(width: 12),
-              // Bouton paramètres (droite)
+              const SizedBox(width: 10),
               GestureDetector(
                 onTap: () => context.go('/settings'),
                 child: Container(
-                  width: 42,
-                  height: 42,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: .18),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.settings_outlined,
-                    color: Colors.white,
-                    size: 21,
-                  ),
+                  child: const Icon(Icons.settings_outlined,
+                      color: Colors.white, size: 19),
                 ),
               ),
             ],
           ),
 
-          const SizedBox(height: 28),
-
-          // ── Zone solde / budget ───────────────────────────────
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Budget du mois',
-              style: TextStyle(
-                color: Color(0xCCFFFFFF),
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              budget == 0 ? 'Définir un budget →' : _f(budget),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 32,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-              ),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              budget == 0
-                  ? 'Appuie sur Modifier pour définir ton budget'
-                  : 'Restant : ${_f(remaining)}',
-              style: const TextStyle(
-                color: Color(0xAAFFFFFF),
-                fontSize: 13,
-              ),
-            ),
-          ),
-
           const SizedBox(height: 16),
+
+          // ── Budget + barre + boutons ──────────────────────────
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Montant + restant
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Budget du mois',
+                      style: TextStyle(
+                        color: Color(0xCCFFFFFF),
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      budget == 0 ? 'Définir →' : _f(budget),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      budget == 0
+                          ? 'Appuie sur Modifier'
+                          : 'Restant : ${_f(remaining)}',
+                      style: const TextStyle(
+                        color: Color(0xAAFFFFFF),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Boutons
+              Column(
+                children: [
+                  _HeaderButton(
+                    icon: Icons.add_rounded,
+                    label: 'Ajouter',
+                    onTap: () => context.go('/add-expense'),
+                  ),
+                  const SizedBox(height: 8),
+                  _HeaderButton(
+                    icon: Icons.edit_outlined,
+                    label: 'Modifier',
+                    onTap: () => _showBudgetDialog(context),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
 
           // Barre de progression
           ClipRRect(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
               value: progress,
-              minHeight: 7,
+              minHeight: 6,
               backgroundColor: Colors.white.withValues(alpha: .2),
               valueColor: AlwaysStoppedAnimation<Color>(barColor),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 '${_f(spent)} dépensé',
                 style: const TextStyle(
-                  color: Color(0xCCFFFFFF),
-                  fontSize: 11,
-                ),
+                    color: Color(0xCCFFFFFF), fontSize: 10),
               ),
               if (budget > 0)
                 Text(
                   '$daysLeft j restants',
                   style: const TextStyle(
-                    color: Color(0xCCFFFFFF),
-                    fontSize: 11,
-                  ),
+                      color: Color(0xCCFFFFFF), fontSize: 10),
                 ),
-            ],
-          ),
-
-          const SizedBox(height: 20),
-
-          // ── Deux boutons d'action ─────────────────────────────
-          Row(
-            children: [
-              Expanded(
-                child: _HeaderButton(
-                  icon: Icons.add_rounded,
-                  label: 'Ajouter',
-                  onTap: () => context.go('/add-expense'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _HeaderButton(
-                  icon: Icons.edit_outlined,
-                  label: 'Modifier budget',
-                  onTap: () => _showBudgetDialog(context),
-                ),
-              ),
             ],
           ),
         ],
@@ -452,8 +426,8 @@ class _Avatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 44,
-      height: 44,
+      width: 38,
+      height: 38,
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: .22),
         shape: BoxShape.circle,
@@ -464,7 +438,7 @@ class _Avatar extends StatelessWidget {
           initial.toUpperCase(),
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 18,
+            fontSize: 16,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -489,22 +463,22 @@ class _HeaderButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 13),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: .18),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(color: Colors.white.withValues(alpha: .25)),
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: Colors.white, size: 18),
-            const SizedBox(width: 8),
+            Icon(icon, color: Colors.white, size: 15),
+            const SizedBox(width: 6),
             Text(
               label,
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
             ),
