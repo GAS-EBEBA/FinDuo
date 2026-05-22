@@ -8,42 +8,62 @@ import 'package:gestionbudget/features/dashboard/presentation/dashboard_screen.d
 import 'package:gestionbudget/features/expenses/presentation/add_expense_screen.dart';
 import 'package:gestionbudget/features/expenses/presentation/history_screen.dart';
 import 'package:gestionbudget/features/goals/presentation/goals_screen.dart';
+import 'package:gestionbudget/features/license/presentation/license_screen.dart';
+import 'package:gestionbudget/features/license/providers/license_provider.dart';
 import 'package:gestionbudget/features/onboarding/presentation/onboarding_screen.dart';
 import 'package:gestionbudget/features/settings/presentation/settings_screen.dart';
 import 'package:gestionbudget/features/stats/presentation/stats_screen.dart';
 import 'package:gestionbudget/shared/providers/couple_provider.dart';
 
-// Notifier unique qui écoute auth + couple et notifie GoRouter
-// sans recréer le router à chaque changement.
 class _RouterNotifier extends ChangeNotifier {
   final Ref _ref;
 
   _RouterNotifier(this._ref) {
-    _ref.listen<AsyncValue>(authStateProvider, (_, _) => notifyListeners());
-    _ref.listen<AsyncValue>(coupleFutureProvider, (_, _) => notifyListeners());
+    _ref.listen<AsyncValue>(authStateProvider,      (_, _) => notifyListeners());
+    _ref.listen<AsyncValue>(coupleFutureProvider,   (_, _) => notifyListeners());
+    _ref.listen<AsyncValue>(licenseStreamProvider,  (_, _) => notifyListeners());
   }
 
-  bool get _authLoading => _ref.read(authStateProvider).isLoading;
-  bool get _coupleLoading => _ref.read(coupleFutureProvider).isLoading;
-  bool get isLoggedIn =>
-      _ref.read(authStateProvider).asData?.value != null;
-  String? get coupleId =>
-      _ref.read(coupleFutureProvider).asData?.value;
+  bool    get _authLoading    => _ref.read(authStateProvider).isLoading;
+  bool    get _coupleLoading  => _ref.read(coupleFutureProvider).isLoading;
+  bool    get _licenseLoading => _ref.read(licenseStreamProvider).isLoading;
+  bool    get isLoggedIn      => _ref.read(authStateProvider).asData?.value != null;
+  String? get coupleId        => _ref.read(coupleFutureProvider).asData?.value;
+  bool    get hasLicense      => _ref.read(licenseStreamProvider).asData?.value ?? false;
 
   String? redirect(String location) {
     if (_authLoading) return null;
 
+    // Pas connecté → login
     if (!isLoggedIn) {
       return location == '/login' ? null : '/login';
     }
 
+    // Connecté sur /login → rediriger
     if (location == '/login') {
       if (_coupleLoading) return null;
-      return coupleId != null ? '/dashboard' : '/onboarding';
+      if (coupleId == null) return '/onboarding';
+      if (_licenseLoading) return null;
+      return hasLicense ? '/dashboard' : '/license';
     }
 
-    if (location != '/onboarding' && !_coupleLoading) {
-      if (coupleId == null) return '/onboarding';
+    if (_coupleLoading) return null;
+
+    // Pas de couple → onboarding
+    if (coupleId == null) {
+      return location == '/onboarding' ? null : '/onboarding';
+    }
+
+    if (_licenseLoading) return null;
+
+    // Pas de licence valide → écran licence
+    if (!hasLicense) {
+      return location == '/license' ? null : '/license';
+    }
+
+    // Licence OK : sortir des écrans non applicables
+    if (location == '/license' || location == '/onboarding') {
+      return '/dashboard';
     }
 
     return null;
@@ -61,6 +81,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/login',       builder: (_, _) => const LoginScreen()),
       GoRoute(path: '/onboarding',  builder: (_, _) => const OnboardingScreen()),
+      GoRoute(path: '/license',     builder: (_, _) => const LicenseScreen()),
       GoRoute(path: '/dashboard',   builder: (_, _) => const DashboardScreen()),
       GoRoute(path: '/add-expense', builder: (_, _) => const AddExpenseScreen()),
       GoRoute(path: '/history',     builder: (_, _) => const HistoryScreen()),
