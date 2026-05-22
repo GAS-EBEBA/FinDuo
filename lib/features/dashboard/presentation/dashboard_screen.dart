@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:gestionbudget/features/expenses/domain/expense_model.dart';
+import 'package:gestionbudget/features/goals/domain/goal_model.dart';
 import 'package:gestionbudget/shared/providers/couple_provider.dart';
 import 'package:gestionbudget/shared/providers/expenses_provider.dart';
+import 'package:gestionbudget/shared/providers/goals_provider.dart';
 import 'package:gestionbudget/shared/widgets/app_bottom_nav.dart';
 
 const _kPrimary = Color(0xFF5B52EE);
@@ -26,6 +28,7 @@ class DashboardScreen extends ConsumerWidget {
     final coupleId      = ref.watch(coupleFutureProvider).asData?.value;
     final partnerName   = ref.watch(partnerNameProvider).asData?.value;
     final budget        = budgetAsync.asData?.value ?? 0.0;
+    final goals         = ref.watch(goalsStreamProvider).asData?.value ?? [];
 
     return Scaffold(
       backgroundColor: _kBg,
@@ -42,6 +45,7 @@ class DashboardScreen extends ConsumerWidget {
             partnerName: partnerName,
             budget: budget,
             coupleId: coupleId,
+            goals: goals,
           ),
         ),
       ),
@@ -53,6 +57,7 @@ class DashboardScreen extends ConsumerWidget {
 // ── Corps principal ────────────────────────────────────────────
 class _Body extends StatelessWidget {
   final List<Expense> expenses;
+  final List<Goal> goals;
   final String userName;
   final String? partnerName;
   final double budget;
@@ -60,6 +65,7 @@ class _Body extends StatelessWidget {
 
   const _Body({
     required this.expenses,
+    required this.goals,
     required this.userName,
     required this.partnerName,
     required this.budget,
@@ -115,50 +121,9 @@ class _Body extends StatelessWidget {
           ),
         ),
 
-        // ── Actions rapides ──────────────────────────────────────
+        // ── Projets en cours ─────────────────────────────────────
         SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Actions rapides',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: _kDark,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _QuickAction(
-                      icon: Icons.history_rounded,
-                      label: 'Historique',
-                      onTap: () => context.go('/history'),
-                    ),
-                    _QuickAction(
-                      icon: Icons.bar_chart_rounded,
-                      label: 'Stats',
-                      onTap: () => context.go('/stats'),
-                    ),
-                    _QuickAction(
-                      icon: Icons.account_balance_wallet_rounded,
-                      label: 'Budget',
-                      onTap: () => context.go('/budget'),
-                    ),
-                    _QuickAction(
-                      icon: Icons.flag_rounded,
-                      label: 'Objectifs',
-                      onTap: () => context.go('/goals'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+          child: _GoalsCard(goals: goals),
         ),
 
         // ── Titre transactions récentes ──────────────────────────
@@ -550,40 +515,260 @@ class _HeaderButton extends StatelessWidget {
   }
 }
 
-// ── Action rapide ──────────────────────────────────────────────
-class _QuickAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  const _QuickAction({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
+// ── Carte projets en cours ─────────────────────────────────────
+class _GoalsCard extends StatelessWidget {
+  final List<Goal> goals;
+  const _GoalsCard({required this.goals});
+
+  static final _fmt = NumberFormat.decimalPattern('fr_FR');
+  static String _f(double v) => '${_fmt.format(v.toInt())} F';
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
+    final inProgress = goals.where((g) => g.progress < 1.0).toList();
+    final completed  = goals.where((g) => g.progress >= 1.0).length;
+    final preview    = inProgress.take(3).toList();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── En-tête ─────────────────────────────────────────
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Projets en cours',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: _kDark,
+                ),
+              ),
+              GestureDetector(
+                onTap: () => context.go('/goals'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: _kPrimary.withValues(alpha: .08),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Voir tout',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _kPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // ── Carte principale ─────────────────────────────────
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: _kCard,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x08000000),
+                  blurRadius: 12,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                // ── Stats : total / en cours / terminés ────────
+                Row(
+                  children: [
+                    _GoalStat(
+                      value: goals.length.toString(),
+                      label: 'Total',
+                      color: _kPrimary,
+                    ),
+                    _GoalDivider(),
+                    _GoalStat(
+                      value: inProgress.length.toString(),
+                      label: 'En cours',
+                      color: _kOrange,
+                    ),
+                    _GoalDivider(),
+                    _GoalStat(
+                      value: completed.toString(),
+                      label: 'Terminés',
+                      color: _kGreen,
+                    ),
+                  ],
+                ),
+
+                if (goals.isEmpty) ...[
+                  const SizedBox(height: 24),
+                  const Icon(Icons.flag_outlined,
+                      color: _kGray, size: 36),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Aucun projet pour le moment',
+                    style: TextStyle(fontSize: 13, color: _kGray),
+                  ),
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: () => context.go('/goals'),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _kPrimary.withValues(alpha: .08),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Text(
+                        'Créer un projet',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: _kPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ] else ...[
+                  const SizedBox(height: 18),
+                  const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                  const SizedBox(height: 14),
+                  // ── Liste des projets (max 3) ───────────────
+                  ...preview.map((g) => _GoalRow(goal: g, fmt: _f)),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GoalStat extends StatelessWidget {
+  final String value;
+  final String label;
+  final Color color;
+  const _GoalStat(
+      {required this.value, required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
       child: Column(
         children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: _kPrimary.withValues(alpha: .1),
-              borderRadius: BorderRadius.circular(18),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: color,
             ),
-            child: Icon(icon, color: _kPrimary, size: 26),
           ),
-          const SizedBox(height: 7),
+          const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: _kDark,
+            style: const TextStyle(fontSize: 11, color: _kGray),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GoalDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 36,
+      color: const Color(0xFFF1F5F9),
+    );
+  }
+}
+
+class _GoalRow extends StatelessWidget {
+  final Goal goal;
+  final String Function(double) fmt;
+  const _GoalRow({required this.goal, required this.fmt});
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = (goal.progress * 100).toStringAsFixed(0);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              // Icône colorée
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: goal.color.withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Icon(Icons.flag_rounded,
+                    color: goal.color, size: 16),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  goal.title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: _kDark,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Text(
+                '$pct%',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: goal.color,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 7),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: goal.progress,
+              minHeight: 6,
+              backgroundColor: goal.color.withValues(alpha: .12),
+              valueColor: AlwaysStoppedAnimation<Color>(goal.color),
             ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                fmt(goal.currentAmount),
+                style: const TextStyle(fontSize: 11, color: _kGray),
+              ),
+              Text(
+                fmt(goal.targetAmount),
+                style: const TextStyle(fontSize: 11, color: _kGray),
+              ),
+            ],
           ),
         ],
       ),
