@@ -16,6 +16,7 @@ final fundingHistoryProvider =
       .map((snap) => snap.docs.map(FundingEntry.fromDoc).toList());
 });
 
+/// Projets actifs (non archivés).
 final goalsStreamProvider = StreamProvider<List<Goal>>((ref) {
   final coupleId = ref.watch(coupleFutureProvider).asData?.value;
   if (coupleId == null) return Stream.value([]);
@@ -25,12 +26,34 @@ final goalsStreamProvider = StreamProvider<List<Goal>>((ref) {
       .where('coupleId', isEqualTo: coupleId)
       .snapshots()
       .map((snap) {
-    final list = snap.docs.map(Goal.fromFirestore).toList();
+    final list = snap.docs
+        .map(Goal.fromFirestore)
+        .where((g) => !g.isArchived)
+        .toList();
     list.sort((a, b) {
       if (a.targetDate == null) return 1;
       if (b.targetDate == null) return -1;
       return a.targetDate!.compareTo(b.targetDate!);
     });
+    return list;
+  });
+});
+
+/// Projets archivés.
+final archivedGoalsStreamProvider = StreamProvider<List<Goal>>((ref) {
+  final coupleId = ref.watch(coupleFutureProvider).asData?.value;
+  if (coupleId == null) return Stream.value([]);
+
+  return FirebaseFirestore.instance
+      .collection('goals')
+      .where('coupleId', isEqualTo: coupleId)
+      .snapshots()
+      .map((snap) {
+    final list = snap.docs
+        .map(Goal.fromFirestore)
+        .where((g) => g.isArchived)
+        .toList();
+    list.sort((a, b) => b.id.compareTo(a.id));
     return list;
   });
 });
@@ -74,6 +97,20 @@ class GoalsNotifier extends AsyncNotifier<void> {
       'date': FieldValue.serverTimestamp(),
     });
     await batch.commit();
+  }
+
+  Future<void> archiveGoal(String goalId) async {
+    await FirebaseFirestore.instance
+        .collection('goals')
+        .doc(goalId)
+        .update({'isArchived': true});
+  }
+
+  Future<void> unarchiveGoal(String goalId) async {
+    await FirebaseFirestore.instance
+        .collection('goals')
+        .doc(goalId)
+        .update({'isArchived': false});
   }
 
   Future<void> deleteGoal(String goalId) async {

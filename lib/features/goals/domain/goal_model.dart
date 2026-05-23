@@ -31,6 +31,7 @@ class Goal {
   final DateTime? targetDate;
   final String coupleId;
   final int colorValue;
+  final bool isArchived;
 
   const Goal({
     required this.id,
@@ -41,6 +42,7 @@ class Goal {
     this.targetDate,
     required this.coupleId,
     required this.colorValue,
+    this.isArchived = false,
   });
 
   Color get color => Color(colorValue);
@@ -52,27 +54,29 @@ class Goal {
   factory Goal.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return Goal(
-      id: doc.id,
-      title: data['title'] as String? ?? '',
-      description: data['description'] as String?,
-      targetAmount: (data['targetAmount'] as num?)?.toDouble() ?? 0.0,
+      id:            doc.id,
+      title:         data['title']         as String? ?? '',
+      description:   data['description']   as String?,
+      targetAmount:  (data['targetAmount']  as num?)?.toDouble() ?? 0.0,
       currentAmount: (data['currentAmount'] as num?)?.toDouble() ?? 0.0,
-      targetDate: data['targetDate'] != null
+      targetDate:    data['targetDate'] != null
           ? (data['targetDate'] as Timestamp).toDate()
           : null,
-      coupleId: data['coupleId'] as String? ?? '',
-      colorValue: data['colorValue'] as int? ?? 0xFF6C63FF,
+      coupleId:      data['coupleId']   as String? ?? '',
+      colorValue:    data['colorValue'] as int?    ?? 0xFF6C63FF,
+      isArchived:    data['isArchived'] as bool?   ?? false,
     );
   }
 
   Map<String, dynamic> toFirestore() => {
-        'title': title,
-        'description': description,
-        'targetAmount': targetAmount,
+        'title':         title,
+        'description':   description,
+        'targetAmount':  targetAmount,
         'currentAmount': currentAmount,
         'targetDate':
             targetDate != null ? Timestamp.fromDate(targetDate!) : null,
-        'coupleId': coupleId,
+        'coupleId':   coupleId,
         'colorValue': colorValue,
+        'isArchived': isArchived,
       };
 }

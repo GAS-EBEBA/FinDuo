@@ -104,14 +104,17 @@ class _GoalsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final goalsAsync = ref.watch(goalsStreamProvider);
+    final goalsAsync    = ref.watch(goalsStreamProvider);
+    final archivedAsync = ref.watch(archivedGoalsStreamProvider);
 
     return goalsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Erreur: $e')),
-      data: (goals) => Stack(
+      data: (goals) {
+        final archived = archivedAsync.asData?.value ?? [];
+        return Stack(
         children: [
-          goals.isEmpty
+          goals.isEmpty && archived.isEmpty
               ? const _EmptyState(
                   icon: Icons.flag_rounded,
                   title: 'Aucun projet',
@@ -121,27 +124,32 @@ class _GoalsTab extends ConsumerWidget {
               : ListView(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
                   children: [
-                    _SummaryCard(
-                      leftLabel: 'Épargné',
-                      leftValue: _f(goals.fold(0.0, (s, g) => s + g.currentAmount)),
-                      centerLabel: 'Objectif total',
-                      centerValue: _f(goals.fold(0.0, (s, g) => s + g.targetAmount)),
-                      rightLabel: 'Restant',
-                      rightValue: _f(goals
-                          .fold(0.0, (s, g) => s + g.remaining)
-                          .clamp(0, double.infinity)),
-                    ),
-                    const SizedBox(height: 16),
-                    ...goals.map((g) => _GoalCard(
-                          goal: g,
-                          onAddFunds: () => showDialog<void>(
-                            context: context,
-                            builder: (_) => _AddFundsDialog(goal: g),
-                          ),
-                          onDelete: () => ref
-                              .read(goalsProvider.notifier)
-                              .deleteGoal(g.id),
-                        )),
+                    if (goals.isNotEmpty) ...[
+                      _SummaryCard(
+                        leftLabel: 'Épargné',
+                        leftValue: _f(goals.fold(0.0, (s, g) => s + g.currentAmount)),
+                        centerLabel: 'Objectif total',
+                        centerValue: _f(goals.fold(0.0, (s, g) => s + g.targetAmount)),
+                        rightLabel: 'Restant',
+                        rightValue: _f(goals
+                            .fold(0.0, (s, g) => s + g.remaining)
+                            .clamp(0, double.infinity)),
+                      ),
+                      const SizedBox(height: 16),
+                      ...goals.map((g) => _GoalCard(
+                            goal: g,
+                            onAddFunds: () => showDialog<void>(
+                              context: context,
+                              builder: (_) => _AddFundsDialog(goal: g),
+                            ),
+                            onDelete: () => ref
+                                .read(goalsProvider.notifier)
+                                .deleteGoal(g.id),
+                          )),
+                    ],
+                    // ── Section archivés ──────────────────────
+                    if (archived.isNotEmpty)
+                      _ArchivedSection(archived: archived),
                   ],
                 ),
           Positioned(
@@ -164,7 +172,8 @@ class _GoalsTab extends ConsumerWidget {
             ),
           ),
         ],
-      ),
+        );
+      },
     );
   }
 }
@@ -680,6 +689,141 @@ class _PlannedCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ── Section archivés ──────────────────────────────────────────
+
+class _ArchivedSection extends ConsumerStatefulWidget {
+  final List<Goal> archived;
+  const _ArchivedSection({required this.archived});
+
+  @override
+  ConsumerState<_ArchivedSection> createState() => _ArchivedSectionState();
+}
+
+class _ArchivedSectionState extends ConsumerState<_ArchivedSection> {
+  bool _expanded = false;
+
+  static final _fmt = NumberFormat.decimalPattern('fr_FR');
+  static String _f(double v) => '${_fmt.format(v.toInt())} FCFA';
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // ── Titre repliable ──────────────────────────────────
+        GestureDetector(
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.inventory_2_outlined,
+                    size: 16, color: Color(0xFF64748B)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Projets archivés (${widget.archived.length})',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ),
+                Icon(
+                  _expanded
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  color: const Color(0xFF94A3B8),
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // ── Liste dépliée ────────────────────────────────────
+        if (_expanded) ...[
+          const SizedBox(height: 8),
+          ...widget.archived.map((g) => Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 38, height: 38,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF94A3B8)
+                            .withValues(alpha: .12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.inventory_2_outlined,
+                          color: Color(0xFF94A3B8), size: 18),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            g.title,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF475569),
+                            ),
+                          ),
+                          Text(
+                            '${_f(g.currentAmount)} / ${_f(g.targetAmount)}',
+                            style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF94A3B8)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Bouton réactiver
+                    GestureDetector(
+                      onTap: () => ref
+                          .read(goalsProvider.notifier)
+                          .unarchiveGoal(g.id),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6C63FF)
+                              .withValues(alpha: .08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          'Réactiver',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF6C63FF),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+        ],
+        const SizedBox(height: 12),
+      ],
     );
   }
 }
@@ -1437,6 +1581,113 @@ class _GoalDetailSheet extends ConsumerWidget {
                       ),
                     ],
                   ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // ── Bouton archiver ───────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: GestureDetector(
+                onTap: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20)),
+                      title: Text(
+                        goal.isArchived
+                            ? 'Réactiver ce projet ?'
+                            : 'Archiver ce projet ?',
+                      ),
+                      content: Text(
+                        goal.isArchived
+                            ? 'Le projet sera de nouveau visible et actif.'
+                            : 'Le projet sera masqué de la liste active. '
+                              'Vous pouvez le réactiver à tout moment.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('Annuler',
+                              style: TextStyle(
+                                  color: Color(0xFF94A3B8))),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: goal.isArchived
+                                ? const Color(0xFF6C63FF)
+                                : const Color(0xFF64748B),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(10)),
+                          ),
+                          child: Text(goal.isArchived
+                              ? 'Réactiver'
+                              : 'Archiver'),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirm == true && context.mounted) {
+                    if (goal.isArchived) {
+                      await ref
+                          .read(goalsProvider.notifier)
+                          .unarchiveGoal(goal.id);
+                    } else {
+                      await ref
+                          .read(goalsProvider.notifier)
+                          .archiveGoal(goal.id);
+                    }
+                    if (context.mounted) Navigator.pop(context);
+                  }
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: goal.isArchived
+                        ? const Color(0xFF6C63FF).withValues(alpha: .08)
+                        : const Color(0xFF64748B).withValues(alpha: .08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: goal.isArchived
+                          ? const Color(0xFF6C63FF).withValues(alpha: .3)
+                          : const Color(0xFF64748B).withValues(alpha: .3),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        goal.isArchived
+                            ? Icons.unarchive_rounded
+                            : Icons.inventory_2_outlined,
+                        size: 16,
+                        color: goal.isArchived
+                            ? const Color(0xFF6C63FF)
+                            : const Color(0xFF64748B),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        goal.isArchived
+                            ? 'Réactiver ce projet'
+                            : 'Archiver ce projet',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: goal.isArchived
+                              ? const Color(0xFF6C63FF)
+                              : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
