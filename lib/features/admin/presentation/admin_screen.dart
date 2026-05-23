@@ -51,7 +51,8 @@ class _LicenseData {
     );
   }
 
-  bool get isExpired  => expiresAt.isBefore(DateTime.now());
+  bool get isUnlimited => expiresAt.year >= 2090;
+  bool get isExpired   => !isUnlimited && expiresAt.isBefore(DateTime.now());
   bool get isActive   => !isRevoked && !isExpired;
   bool get isUsed     => activatedBy != null;
 }
@@ -221,8 +222,13 @@ class _LicenseTile extends StatelessWidget {
             Row(
               children: [
                 _InfoChip(
-                  icon: Icons.calendar_today_rounded,
-                  text: 'Expire le ${_fmt.format(license.expiresAt)}',
+                  icon: license.expiresAt.year >= 2090
+                      ? Icons.all_inclusive_rounded
+                      : Icons.calendar_today_rounded,
+                  text: license.expiresAt.year >= 2090
+                      ? 'Illimitée'
+                      : 'Expire le ${_fmt.format(license.expiresAt)}',
+                  color: license.expiresAt.year >= 2090 ? _kPrimary : _kGray,
                 ),
                 const SizedBox(width: 10),
                 _InfoChip(
@@ -330,11 +336,12 @@ class _GenerateDialogState extends State<_GenerateDialog> {
   String? _generatedCode;
 
   static const _durations = [
-    (label: '1 mois',  months: 1),
-    (label: '3 mois',  months: 3),
-    (label: '6 mois',  months: 6),
-    (label: '1 an',    months: 12),
-    (label: '2 ans',   months: 24),
+    (label: '1 mois',    months: 1),
+    (label: '3 mois',    months: 3),
+    (label: '6 mois',    months: 6),
+    (label: '1 an',      months: 12),
+    (label: '2 ans',     months: 24),
+    (label: 'Illimitée', months: -1),
   ];
 
   String _generateCode() {
@@ -349,14 +356,16 @@ class _GenerateDialogState extends State<_GenerateDialog> {
     setState(() => _generating = true);
     final code = _generateCode();
     final now  = DateTime.now();
-    final exp  = DateTime(now.year, now.month + _months, now.day);
+    final exp  = _months == -1
+        ? DateTime(2099, 12, 31)
+        : DateTime(now.year, now.month + _months, now.day);
 
     await FirebaseFirestore.instance.collection('licenses').doc(code).set({
-      'expiresAt':   Timestamp.fromDate(exp),
-      'isRevoked':   false,
-      'activatedBy': null,
-      'activatedAt': null,
-      'createdAt':   FieldValue.serverTimestamp(),
+      'expiresAt':      Timestamp.fromDate(exp),
+      'isRevoked':      false,
+      'activatedBy':    null,
+      'activatedAt':    null,
+      'createdAt':      FieldValue.serverTimestamp(),
       'durationMonths': _months,
     });
 
@@ -367,7 +376,10 @@ class _GenerateDialogState extends State<_GenerateDialog> {
   Widget build(BuildContext context) {
     final fmt = DateFormat('dd/MM/yyyy');
     final now = DateTime.now();
-    final exp = DateTime(now.year, now.month + _months, now.day);
+    final isUnlimited = _months == -1;
+    final exp = isUnlimited
+        ? DateTime(2099, 12, 31)
+        : DateTime(now.year, now.month + _months, now.day);
 
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
@@ -426,7 +438,9 @@ class _GenerateDialogState extends State<_GenerateDialog> {
                             size: 16, color: _kGray),
                         const SizedBox(width: 8),
                         Text(
-                          'Expire le ${fmt.format(exp)}',
+                          isUnlimited
+                              ? '∞  N\'expire jamais'
+                              : 'Expire le ${fmt.format(exp)}',
                           style: const TextStyle(
                               fontSize: 13, color: _kDark),
                         ),
@@ -488,7 +502,7 @@ class _GenerateDialogState extends State<_GenerateDialog> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Expire le ${fmt.format(exp)}',
+                    isUnlimited ? '∞  N\'expire jamais' : 'Expire le ${fmt.format(exp)}',
                     style: const TextStyle(fontSize: 12, color: _kGray),
                   ),
                 ],
