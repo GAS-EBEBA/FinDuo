@@ -28,7 +28,7 @@ final goalsStreamProvider = StreamProvider<List<Goal>>((ref) {
       .map((snap) {
     final list = snap.docs
         .map(Goal.fromFirestore)
-        .where((g) => !g.isArchived)
+        .where((g) => g.isArchived != true)
         .toList();
     list.sort((a, b) {
       if (a.targetDate == null) return 1;
@@ -51,7 +51,7 @@ final archivedGoalsStreamProvider = StreamProvider<List<Goal>>((ref) {
       .map((snap) {
     final list = snap.docs
         .map(Goal.fromFirestore)
-        .where((g) => g.isArchived)
+        .where((g) => g.isArchived == true)
         .toList();
     list.sort((a, b) => b.id.compareTo(a.id));
     return list;

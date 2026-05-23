@@ -64,7 +64,7 @@ class Goal {
           : null,
       coupleId:      data['coupleId']   as String? ?? '',
       colorValue:    data['colorValue'] as int?    ?? 0xFF6C63FF,
-      isArchived:    data['isArchived'] as bool?   ?? false,
+      isArchived:    data['isArchived'] == true,
     );
   }
 
