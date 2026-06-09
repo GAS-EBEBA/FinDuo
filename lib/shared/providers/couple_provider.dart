@@ -96,8 +96,20 @@ class CoupleNotifier extends Notifier<CoupleState> {
     final sub = FirebaseAuth.instance.authStateChanges().listen(_onAuthChanged);
     ref.onDispose(sub.cancel);
 
+    // Recharge le nom et le partenaire quand coupleId change (ex: après onboarding)
+    ref.listen(coupleFutureProvider, (previous, next) {
+      next.whenData((coupleId) {
+        if (coupleId != null && state.userId != null) {
+          _loadUserName(state.userId!);
+          _loadPartner(coupleId, state.userId!);
+        }
+      });
+    });
+
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
+      // Charge le nom depuis Firestore plutôt que depuis Auth
+      _loadUserName(user.uid);
       return CoupleState(
         userId: user.uid,
         userName: user.displayName ?? user.email?.split('@').first ?? 'Moi',
@@ -114,7 +126,83 @@ class CoupleNotifier extends Notifier<CoupleState> {
         userId: user.uid,
         userName: user.displayName ?? user.email?.split('@').first ?? 'Moi',
       );
+      // Charge le nom et le partenaire quand l'utilisateur change
+      _loadUserName(user.uid);
+      _loadPartnerForUser(user.uid);
     }
+  }
+
+  Future<void> _loadUserName(String userId) async {
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+      final userData = userDoc.data();
+      if (userData == null) return;
+      
+      // Récupère le displayName ou utilise un fallback
+      String displayName = (userData['displayName'] as String?)?.trim() ?? '';
+      if (displayName.isEmpty) {
+        // Fallback à l'email
+        final email = userData['email'] as String?;
+        displayName = email?.split('@').first ?? 'Moi';
+      }
+      
+      if (displayName.isNotEmpty) {
+        state = state.copyWith(userName: displayName);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadPartnerForUser(String userId) async {
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+      final coupleId = userDoc.data()?['coupleId'] as String?;
+      if (coupleId != null) {
+        await _loadPartner(coupleId, userId);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadPartner(String coupleId, String currentUserId) async {
+    try {
+      final coupleDoc = await FirebaseFirestore.instance
+          .collection('couples')
+          .doc(coupleId)
+          .get();
+      final data = coupleDoc.data();
+      if (data == null) return;
+
+      final creatorId = data['creatorId'] as String?;
+      final partnerId = data['partnerId'] as String?;
+
+      // Détermine qui est le partenaire
+      final partnerUid = creatorId == currentUserId ? partnerId : creatorId;
+      if (partnerUid == null) return;
+
+      // Charge le nom du partenaire
+      final partnerDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(partnerUid)
+          .get();
+      
+      final partnerData = partnerDoc.data();
+      if (partnerData == null) return;
+      
+      // Récupère le displayName ou utilise un fallback
+      String partnerName = (partnerData['displayName'] as String?)?.trim() ?? '';
+      if (partnerName.isEmpty) {
+        // Fallback à l'email
+        final email = partnerData['email'] as String?;
+        partnerName = email?.split('@').first ?? 'Partenaire';
+      }
+
+      state = state.copyWith(partnerId: partnerUid, partnerName: partnerName);
+    } catch (_) {}
   }
 
   void setPartner(String partnerId, String partnerName) {

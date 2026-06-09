@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:gestionbudget/features/auth/data/auth_service.dart';
@@ -51,21 +52,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     super.dispose();
   }
 
+  String _sanitizeEmail(String raw) =>
+      raw.trim().replaceAll(RegExp(r'[^\x20-\x7E]'), '');
+
   Future<void> _handleEmailAuth() async {
     if (!_formKey.currentState!.validate()) return;
     _clearError();
     setState(() => _isLoading = true);
 
+    final email = _sanitizeEmail(_emailController.text);
+
     try {
       final service = ref.read(authServiceProvider);
       if (_isCreatingAccount) {
         await service.createAccount(
-          email: _emailController.text.trim(),
+          email: email,
           password: _passwordController.text,
         );
       } else {
         await service.signInWithEmail(
-          email: _emailController.text.trim(),
+          email: email,
           password: _passwordController.text,
         );
       }
@@ -131,6 +137,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       controller: _emailController,
                       label: 'Adresse email',
                       keyboardType: TextInputType.emailAddress,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                          RegExp(r'[a-zA-Z0-9@._+\-]'),
+                        ),
+                      ],
                       validator: (v) {
                         if (v == null || v.isEmpty) return 'Email requis';
                         if (!v.contains('@')) return 'Email invalide';
@@ -318,6 +329,7 @@ class _InputField extends StatelessWidget {
   final bool obscureText;
   final Widget? suffixIcon;
   final String? Function(String?)? validator;
+  final List<TextInputFormatter>? inputFormatters;
 
   const _InputField({
     required this.controller,
@@ -326,6 +338,7 @@ class _InputField extends StatelessWidget {
     this.obscureText = false,
     this.suffixIcon,
     this.validator,
+    this.inputFormatters,
   });
 
   @override
@@ -335,6 +348,7 @@ class _InputField extends StatelessWidget {
       keyboardType: keyboardType,
       obscureText: obscureText,
       validator: validator,
+      inputFormatters: inputFormatters,
       style: const TextStyle(fontSize: 15),
       decoration: InputDecoration(
         labelText: label,

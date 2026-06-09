@@ -74,6 +74,28 @@ class CoupleService {
     });
   }
 
+  /// Crée un espace solo et assigne un coupleId à l'utilisateur.
+  Future<void> setupSolo({
+    required String userId,
+    required String displayName,
+  }) async {
+    final spaceRef = _db.collection('couples').doc();
+
+    await _db.runTransaction((tx) async {
+      tx.set(spaceRef, {
+        'creatorId': userId,
+        'partnerId': null,
+        'mode': 'solo',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      tx.set(
+        _db.collection('users').doc(userId),
+        {'coupleId': spaceRef.id, 'displayName': displayName, 'mode': 'solo'},
+        SetOptions(merge: true),
+      );
+    });
+  }
+
   /// Retourne le coupleId de l'utilisateur, ou null si pas encore lié.
   Future<String?> getCoupleId(String userId) async {
     final doc = await _db.collection('users').doc(userId).get();

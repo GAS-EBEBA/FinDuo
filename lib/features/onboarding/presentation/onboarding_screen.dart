@@ -6,6 +6,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:gestionbudget/features/onboarding/data/couple_service.dart';
 import 'package:gestionbudget/shared/providers/couple_provider.dart';
 
+enum _AppMode { solo, couple }
+
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -16,6 +18,7 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   bool _isLoading = false;
   bool _isJoining = false;
+  _AppMode _mode = _AppMode.solo;
   String? _errorMessage;
   String? _generatedCode;
 
@@ -31,12 +34,44 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     super.dispose();
   }
 
-  Future<void> _createCouple() async {
+  Future<void> _onContinue() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      setState(() => _errorMessage = 'Entre ton prénom');
+      setState(() => _errorMessage = 'Saisis ton prénom pour continuer');
       return;
     }
+    if (_mode == _AppMode.solo) {
+      await _setupSolo(name);
+    } else if (_isJoining) {
+      await _joinCouple();
+    } else {
+      await _createCouple();
+    }
+  }
+
+  Future<void> _setupSolo(String name) async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      final user = FirebaseAuth.instance.currentUser!;
+      await ref.read(coupleServiceProvider).setupSolo(
+            userId: user.uid,
+            displayName: name,
+          );
+      ref.invalidate(coupleFutureProvider);
+      if (mounted) context.go('/dashboard');
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _createCouple() async {
+    final name = _nameController.text.trim();
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -62,10 +97,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Future<void> _joinCouple() async {
     final name = _nameController.text.trim();
     final code = _codeController.text.trim();
-    if (name.isEmpty) {
-      setState(() => _errorMessage = 'Entre ton prénom');
-      return;
-    }
     if (code.length != 6) {
       setState(() => _errorMessage = 'Le code doit avoir 6 caractères');
       return;
@@ -91,6 +122,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
   }
 
+  String get _buttonLabel {
+    if (_mode == _AppMode.solo) return 'Continuer en solo';
+    if (_isJoining) return 'Rejoindre le couple';
+    return 'Créer notre espace';
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_generatedCode != null) return _buildShareCodeScreen();
@@ -103,67 +140,114 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 40),
-              const Text('💑', style: TextStyle(fontSize: 60)),
+              const SizedBox(height: 32),
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEEEDFE),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Icon(
+                  Icons.tune_rounded,
+                  color: _kPrimary,
+                  size: 32,
+                ),
+              ),
               const SizedBox(height: 24),
               Text(
-                'Configurer votre couple',
+                'Personnaliser votre compte',
                 style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
                   color: Colors.grey[900],
                 ),
               ),
               const SizedBox(height: 8),
               Text(
-                'Lie ton compte à celui de ton/ta partenaire\npour partager vos dépenses',
+                'Comment souhaitez-vous utiliser l\'application ?',
                 textAlign: TextAlign.center,
-                style:
-                    TextStyle(fontSize: 14, color: Colors.grey[500], height: 1.5),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[500],
+                  height: 1.5,
+                ),
               ),
-              const SizedBox(height: 36),
+              const SizedBox(height: 32),
               _buildTextField(
                 controller: _nameController,
-                label: 'Ton prénom',
-                icon: Icons.person_outline,
+                label: 'Votre prénom',
+                icon: Icons.badge_outlined,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               Row(
                 children: [
                   Expanded(
-                    child: _ToggleButton(
-                      label: 'Créer un couple',
-                      icon: Icons.add_circle_outline,
-                      selected: !_isJoining,
+                    child: _ModeCard(
+                      icon: Icons.person_outline_rounded,
+                      label: 'Solo',
+                      description: 'Gérer seul\nmon budget',
+                      selected: _mode == _AppMode.solo,
                       onTap: () => setState(() {
-                        _isJoining = false;
+                        _mode = _AppMode.solo;
                         _errorMessage = null;
                       }),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _ToggleButton(
-                      label: 'Rejoindre',
-                      icon: Icons.link,
-                      selected: _isJoining,
+                    child: _ModeCard(
+                      icon: Icons.people_outline_rounded,
+                      label: 'En couple',
+                      description: 'Partager avec\nmon partenaire',
+                      selected: _mode == _AppMode.couple,
                       onTap: () => setState(() {
-                        _isJoining = true;
+                        _mode = _AppMode.couple;
                         _errorMessage = null;
                       }),
                     ),
                   ),
                 ],
               ),
-              if (_isJoining) ...[
-                const SizedBox(height: 20),
-                _buildTextField(
-                  controller: _codeController,
-                  label: "Code d'invitation (6 caractères)",
-                  icon: Icons.vpn_key_outlined,
-                  textCapitalization: TextCapitalization.characters,
-                  maxLength: 6,
+              if (_mode == _AppMode.couple) ...[
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _ToggleButton(
+                        label: 'Créer un espace',
+                        icon: Icons.add_circle_outline_rounded,
+                        selected: !_isJoining,
+                        onTap: () => setState(() {
+                          _isJoining = false;
+                          _errorMessage = null;
+                        }),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _ToggleButton(
+                        label: 'Rejoindre',
+                        icon: Icons.link_rounded,
+                        selected: _isJoining,
+                        onTap: () => setState(() {
+                          _isJoining = true;
+                          _errorMessage = null;
+                        }),
+                      ),
+                    ),
+                  ],
                 ),
+                if (_isJoining) ...[
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    controller: _codeController,
+                    label: "Code d'invitation (6 caractères)",
+                    icon: Icons.vpn_key_outlined,
+                    textCapitalization: TextCapitalization.characters,
+                    maxLength: 6,
+                  ),
+                ],
               ],
               if (_errorMessage != null) ...[
                 const SizedBox(height: 16),
@@ -174,26 +258,40 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     color: const Color(0xFFFCEBEB),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Text(
-                    _errorMessage!,
-                    style: const TextStyle(
-                        color: Color(0xFFE24B4A), fontSize: 13),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.error_outline_rounded,
+                        color: Color(0xFFE24B4A),
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(
+                            color: Color(0xFFE24B4A),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
               SizedBox(
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed:
-                      _isLoading ? null : (_isJoining ? _joinCouple : _createCouple),
+                  onPressed: _isLoading ? null : _onContinue,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _kPrimary,
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                     disabledBackgroundColor: _kPrimary.withValues(alpha: 0.5),
                   ),
                   child: _isLoading
@@ -201,12 +299,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : Text(
-                          _isJoining ? 'Rejoindre' : 'Créer le couple',
+                          _buttonLabel,
                           style: const TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w600),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                 ),
               ),
@@ -226,26 +328,44 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('🎉', style: TextStyle(fontSize: 60)),
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F5E9),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Icon(
+                  Icons.check_circle_outline_rounded,
+                  color: Color(0xFF43A047),
+                  size: 32,
+                ),
+              ),
               const SizedBox(height: 24),
               Text(
-                'Couple créé !',
+                'Espace créé !',
                 style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[900]),
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey[900],
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Partage ce code avec ton/ta partenaire\npour lier vos comptes',
                 textAlign: TextAlign.center,
-                style:
-                    TextStyle(fontSize: 14, color: Colors.grey[500], height: 1.5),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[500],
+                  height: 1.5,
+                ),
               ),
               const SizedBox(height: 40),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 24,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEEEDFE),
                   borderRadius: BorderRadius.circular(16),
@@ -264,10 +384,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     ),
                     const SizedBox(width: 12),
                     IconButton(
-                      icon: const Icon(Icons.copy, color: Color(0xFF6C63FF)),
+                      icon: const Icon(Icons.copy_rounded, color: Color(0xFF6C63FF)),
                       onPressed: () {
-                        Clipboard.setData(
-                            ClipboardData(text: _generatedCode!));
+                        Clipboard.setData(ClipboardData(text: _generatedCode!));
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Code copié !')),
                         );
@@ -296,12 +415,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                   child: const Text(
                     'Continuer vers le tableau de bord',
-                    style:
-                        TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -312,7 +431,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   context.go('/dashboard');
                 },
                 child: Text(
-                  "En attendre que mon/ma partenaire se connecte",
+                  "Attendre que mon/ma partenaire se connecte",
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 13, color: Colors.grey[500]),
                 ),
@@ -342,8 +461,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         filled: true,
         fillColor: Colors.grey[50],
         counterText: '',
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey[200]!),
@@ -355,6 +476,73 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Color(0xFF6C63FF), width: 1.5),
+        ),
+      ),
+    );
+  }
+}
+
+class _ModeCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String description;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ModeCard({
+    required this.icon,
+    required this.label,
+    required this.description,
+    required this.selected,
+    required this.onTap,
+  });
+
+  static const _kPrimary = Color(0xFF6C63FF);
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFFEEEDFE) : Colors.grey[50],
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? _kPrimary : Colors.grey[200]!,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              size: 30,
+              color: selected ? _kPrimary : Colors.grey[400],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: selected ? _kPrimary : Colors.grey[700],
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              description,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11,
+                height: 1.4,
+                color: selected
+                    ? _kPrimary.withValues(alpha: 0.7)
+                    : Colors.grey[400],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -374,26 +562,28 @@ class _ToggleButton extends StatelessWidget {
     required this.onTap,
   });
 
+  static const _kPrimary = Color(0xFF6C63FF);
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           color: selected ? const Color(0xFFEEEDFE) : Colors.grey[50],
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected ? const Color(0xFF6C63FF) : Colors.grey[200]!,
+            color: selected ? _kPrimary : Colors.grey[200]!,
           ),
         ),
         child: Column(
           children: [
             Icon(
               icon,
-              size: 24,
-              color: selected ? const Color(0xFF6C63FF) : Colors.grey[400],
+              size: 22,
+              color: selected ? _kPrimary : Colors.grey[400],
             ),
             const SizedBox(height: 6),
             Text(
@@ -402,9 +592,7 @@ class _ToggleButton extends StatelessWidget {
                 fontSize: 13,
                 fontWeight:
                     selected ? FontWeight.w600 : FontWeight.normal,
-                color: selected
-                    ? const Color(0xFF6C63FF)
-                    : Colors.grey[600],
+                color: selected ? _kPrimary : Colors.grey[600],
               ),
             ),
           ],

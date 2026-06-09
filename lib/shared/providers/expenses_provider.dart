@@ -4,12 +4,20 @@ import 'package:gestionbudget/features/expenses/domain/expense_model.dart';
 import 'package:gestionbudget/shared/providers/couple_provider.dart';
 
 final expensesStreamProvider = StreamProvider<List<Expense>>((ref) {
-  final userId = ref.watch(coupleProvider.select((s) => s.userId));
-  if (userId == null) return Stream.value([]);
+  final couple = ref.watch(coupleProvider);
+  
+  if (couple.userId == null) return Stream.value([]);
 
+  // Construit la liste des userIds à chercher
+  final userIds = [couple.userId!];
+  if (couple.partnerId != null) {
+    userIds.add(couple.partnerId!);
+  }
+
+  // Récupère les dépenses de l'utilisateur ET du partenaire s'il existe
   return FirebaseFirestore.instance
       .collection('expenses')
-      .where('userId', isEqualTo: userId)
+      .where('userId', whereIn: userIds)
       .snapshots()
       .map((snap) {
         final list = snap.docs

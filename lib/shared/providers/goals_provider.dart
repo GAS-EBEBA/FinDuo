@@ -4,17 +4,26 @@ import 'package:gestionbudget/features/goals/domain/goal_model.dart';
 import 'package:gestionbudget/features/goals/domain/planned_expense_model.dart';
 import 'package:gestionbudget/shared/providers/couple_provider.dart';
 
-/// Historique des alimentations d'un projet donné, trié par date décroissante.
-final fundingHistoryProvider =
-    StreamProvider.family<List<FundingEntry>, String>((ref, goalId) {
+/// Stream temps réel pour un projet individuel (rafraîchit le détail en live).
+final goalStreamProvider = StreamProvider.family<Goal?, String>((ref, goalId) {
   return FirebaseFirestore.instance
       .collection('goals')
       .doc(goalId)
-      .collection('fundings')
-      .orderBy('date', descending: true)
       .snapshots()
-      .map((snap) => snap.docs.map(FundingEntry.fromDoc).toList());
+      .map((doc) => doc.exists ? Goal.fromFirestore(doc) : null);
 });
+
+/// Historique des alimentations d'un projet donné, trié par date décroissante.
+final fundingHistoryProvider =
+    StreamProvider.family<List<FundingEntry>, String>((ref, goalId) {
+      return FirebaseFirestore.instance
+          .collection('goals')
+          .doc(goalId)
+          .collection('fundings')
+          .orderBy('date', descending: true)
+          .snapshots()
+          .map((snap) => snap.docs.map(FundingEntry.fromDoc).toList());
+    });
 
 /// Projets actifs (non archivés).
 final goalsStreamProvider = StreamProvider<List<Goal>>((ref) {
@@ -26,17 +35,31 @@ final goalsStreamProvider = StreamProvider<List<Goal>>((ref) {
       .where('coupleId', isEqualTo: coupleId)
       .snapshots()
       .map((snap) {
-    final list = snap.docs
-        .map(Goal.fromFirestore)
-        .where((g) => g.isArchived != true)
-        .toList();
-    list.sort((a, b) {
-      if (a.targetDate == null) return 1;
-      if (b.targetDate == null) return -1;
-      return a.targetDate!.compareTo(b.targetDate!);
-    });
-    return list;
-  });
+        final list = snap.docs
+            .map(Goal.fromFirestore)
+            .where((g) => g.isArchived != true)
+            .toList();
+        list.sort((a, b) {
+          if (a.targetDate == null) return 1;
+          if (b.targetDate == null) return -1;
+          return a.targetDate!.compareTo(b.targetDate!);
+        });
+        return list;
+      });
+});
+
+final planningGoalsStreamProvider = StreamProvider<List<Goal>>((ref) {
+  final goals = ref.watch(goalsStreamProvider).asData?.value ?? [];
+  return Stream.value(
+    goals.where((goal) => goal.type == GoalType.planning).toList(),
+  );
+});
+
+final projectManagementGoalsStreamProvider = StreamProvider<List<Goal>>((ref) {
+  final goals = ref.watch(goalsStreamProvider).asData?.value ?? [];
+  return Stream.value(
+    goals.where((goal) => goal.type == GoalType.project).toList(),
+  );
 });
 
 /// Projets archivés.
@@ -49,16 +72,18 @@ final archivedGoalsStreamProvider = StreamProvider<List<Goal>>((ref) {
       .where('coupleId', isEqualTo: coupleId)
       .snapshots()
       .map((snap) {
-    final list = snap.docs
-        .map(Goal.fromFirestore)
-        .where((g) => g.isArchived == true)
-        .toList();
-    list.sort((a, b) => b.id.compareTo(a.id));
-    return list;
-  });
+        final list = snap.docs
+            .map(Goal.fromFirestore)
+            .where((g) => g.isArchived == true)
+            .toList();
+        list.sort((a, b) => b.id.compareTo(a.id));
+        return list;
+      });
 });
 
-final plannedExpensesStreamProvider = StreamProvider<List<PlannedExpense>>((ref) {
+final plannedExpensesStreamProvider = StreamProvider<List<PlannedExpense>>((
+  ref,
+) {
   final coupleId = ref.watch(coupleFutureProvider).asData?.value;
   if (coupleId == null) return Stream.value([]);
 
@@ -67,14 +92,15 @@ final plannedExpensesStreamProvider = StreamProvider<List<PlannedExpense>>((ref)
       .where('coupleId', isEqualTo: coupleId)
       .snapshots()
       .map((snap) {
-    final list = snap.docs.map(PlannedExpense.fromFirestore).toList();
-    list.sort((a, b) => a.plannedDate.compareTo(b.plannedDate));
-    return list;
-  });
+        final list = snap.docs.map(PlannedExpense.fromFirestore).toList();
+        list.sort((a, b) => a.plannedDate.compareTo(b.plannedDate));
+        return list;
+      });
 });
 
-final goalsProvider =
-    AsyncNotifierProvider<GoalsNotifier, void>(GoalsNotifier.new);
+final goalsProvider = AsyncNotifierProvider<GoalsNotifier, void>(
+  GoalsNotifier.new,
+);
 
 class GoalsNotifier extends AsyncNotifier<void> {
   @override
@@ -100,30 +126,47 @@ class GoalsNotifier extends AsyncNotifier<void> {
   }
 
   Future<void> archiveGoal(String goalId) async {
-    await FirebaseFirestore.instance
-        .collection('goals')
-        .doc(goalId)
-        .update({'isArchived': true});
+    await FirebaseFirestore.instance.collection('goals').doc(goalId).update({
+      'isArchived': true,
+    });
   }
 
   Future<void> unarchiveGoal(String goalId) async {
-    await FirebaseFirestore.instance
-        .collection('goals')
-        .doc(goalId)
-        .update({'isArchived': false});
+    await FirebaseFirestore.instance.collection('goals').doc(goalId).update({
+      'isArchived': false,
+    });
   }
 
   Future<void> deleteGoal(String goalId) async {
+    await FirebaseFirestore.instance.collection('goals').doc(goalId).delete();
+  }
+
+  Future<void> updateGoal(String goalId, Map<String, dynamic> data) async {
     await FirebaseFirestore.instance
         .collection('goals')
         .doc(goalId)
-        .delete();
+        .update(data);
+  }
+
+  Future<void> updateProjectStatus(String goalId, ProjectStatus status) async {
+    await updateGoal(goalId, {'status': status.name});
+  }
+
+  Future<void> updateSpentAmount(String goalId, double spentAmount) async {
+    await updateGoal(goalId, {'spentAmount': spentAmount});
+  }
+
+  Future<void> saveTasks(String goalId, List<ProjectTask> tasks) async {
+    await updateGoal(goalId, {
+      'tasks': tasks.map((task) => task.toMap()).toList(),
+    });
   }
 }
 
 final plannedExpensesProvider =
     AsyncNotifierProvider<PlannedExpensesNotifier, void>(
-        PlannedExpensesNotifier.new);
+      PlannedExpensesNotifier.new,
+    );
 
 class PlannedExpensesNotifier extends AsyncNotifier<void> {
   @override

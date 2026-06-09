@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+// ignore: unnecessary_import
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gestionbudget/features/license/providers/license_provider.dart';
 
@@ -26,6 +28,10 @@ class _LicenseScreenState extends ConsumerState<LicenseScreen> {
     final code = _controller.text.trim();
     if (code.isEmpty) {
       setState(() => _errorMessage = 'Veuillez saisir votre code de licence.');
+      return;
+    }
+    if (code.length != 21 || !code.startsWith('FINDUO-')) {
+      setState(() => _errorMessage = 'Format invalide. Exemple : FINDUO-XXXX-XXXX-XXXX');
       return;
     }
     setState(() { _loading = true; _errorMessage = null; });
@@ -106,6 +112,7 @@ class _LicenseScreenState extends ConsumerState<LicenseScreen> {
                 controller: _controller,
                 textCapitalization: TextCapitalization.characters,
                 textAlign: TextAlign.center,
+                inputFormatters: [_LicenseFormatter()],
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -113,7 +120,7 @@ class _LicenseScreenState extends ConsumerState<LicenseScreen> {
                   color: Color(0xFF0F172A),
                 ),
                 decoration: InputDecoration(
-                  hintText: 'XXXX-XXXX-XXXX',
+                  hintText: 'FINDUO-XXXX-XXXX-XXXX',
                   hintStyle: TextStyle(
                     fontSize: 16,
                     letterSpacing: 3,
@@ -239,6 +246,45 @@ class _LicenseScreenState extends ConsumerState<LicenseScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _LicenseFormatter extends TextInputFormatter {
+  static const _prefix = 'FINDUO-';
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // Extrait uniquement la partie alphanumérique tapée par l'utilisateur
+    String raw = newValue.text.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+
+    // Supprime le préfixe FINDUO s'il a été saisi manuellement
+    if (raw.startsWith('FINDUO')) raw = raw.substring(6);
+
+    // Limite à 12 caractères (la partie variable : 3 × 4)
+    if (raw.length > 12) raw = raw.substring(0, 12);
+
+    if (raw.isEmpty) {
+      return const TextEditingValue(
+        text: '',
+        selection: TextSelection.collapsed(offset: 0),
+      );
+    }
+
+    // Construit FINDUO-XXXX-XXXX-XXXX
+    final buf = StringBuffer(_prefix);
+    for (int i = 0; i < raw.length; i++) {
+      if (i == 4 || i == 8) buf.write('-');
+      buf.write(raw[i]);
+    }
+
+    final result = buf.toString();
+    return TextEditingValue(
+      text: result,
+      selection: TextSelection.collapsed(offset: result.length),
     );
   }
 }

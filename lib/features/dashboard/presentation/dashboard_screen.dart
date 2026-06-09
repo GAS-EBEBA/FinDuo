@@ -4,18 +4,19 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:gestionbudget/features/expenses/domain/expense_model.dart';
 import 'package:gestionbudget/features/goals/domain/goal_model.dart';
+import 'package:gestionbudget/shared/providers/connectivity_provider.dart';
 import 'package:gestionbudget/shared/providers/couple_provider.dart';
 import 'package:gestionbudget/shared/providers/expenses_provider.dart';
 import 'package:gestionbudget/shared/providers/goals_provider.dart';
 import 'package:gestionbudget/shared/widgets/app_bottom_nav.dart';
 
 const _kPrimary = Color(0xFF5B52EE);
-const _kBg       = Color(0xFFF5F7FA);
-const _kCard     = Colors.white;
-const _kDark     = Color(0xFF0F172A);
-const _kGray     = Color(0xFF94A3B8);
-const _kGreen    = Color(0xFF22C55E);
-const _kOrange   = Color(0xFFF97316);
+const _kBg = Color(0xFFF5F7FA);
+const _kCard = Colors.white;
+const _kDark = Color(0xFF0F172A);
+const _kGray = Color(0xFF94A3B8);
+const _kGreen = Color(0xFF22C55E);
+const _kOrange = Color(0xFFF97316);
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -23,21 +24,21 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final expensesAsync = ref.watch(expensesStreamProvider);
-    final budgetAsync   = ref.watch(budgetStreamProvider);
-    final couple        = ref.watch(coupleProvider);
-    final coupleId      = ref.watch(coupleFutureProvider).asData?.value;
-    final partnerName   = ref.watch(partnerNameProvider).asData?.value;
-    final budget        = budgetAsync.asData?.value ?? 0.0;
-    final goals         = ref.watch(goalsStreamProvider).asData?.value ?? [];
+    final budgetAsync = ref.watch(budgetStreamProvider);
+    final couple = ref.watch(coupleProvider);
+    final coupleId = ref.watch(coupleFutureProvider).asData?.value;
+    final partnerName = ref.watch(partnerNameProvider).asData?.value;
+    final budget = budgetAsync.asData?.value ?? 0.0;
+    final goals = ref.watch(goalsStreamProvider).asData?.value ?? [];
+    final isOnline = ref.watch(connectivityProvider).asData?.value ?? true;
 
     return Scaffold(
       backgroundColor: _kBg,
       body: SafeArea(
         bottom: false,
         child: expensesAsync.when(
-          loading: () => const Center(
-            child: CircularProgressIndicator(color: _kPrimary),
-          ),
+          loading: () =>
+              const Center(child: CircularProgressIndicator(color: _kPrimary)),
           error: (e, _) => _ErrorBody(message: e.toString()),
           data: (expenses) => _Body(
             expenses: expenses,
@@ -46,6 +47,7 @@ class DashboardScreen extends ConsumerWidget {
             budget: budget,
             coupleId: coupleId,
             goals: goals,
+            isOnline: isOnline,
           ),
         ),
       ),
@@ -62,6 +64,7 @@ class _Body extends StatelessWidget {
   final String? partnerName;
   final double budget;
   final String? coupleId;
+  final bool isOnline;
 
   const _Body({
     required this.expenses,
@@ -70,6 +73,7 @@ class _Body extends StatelessWidget {
     required this.partnerName,
     required this.budget,
     required this.coupleId,
+    required this.isOnline,
   });
 
   double get _totalMonth {
@@ -97,9 +101,9 @@ class _Body extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final total     = _totalMonth;
+    final total = _totalMonth;
     final remaining = (budget - total).clamp(0.0, double.infinity);
-    final progress  = budget > 0 ? (total / budget).clamp(0.0, 1.0) : 0.0;
+    final progress = budget > 0 ? (total / budget).clamp(0.0, 1.0) : 0.0;
     final overBudget = total > budget && budget > 0;
 
     return CustomScrollView(
@@ -118,13 +122,12 @@ class _Body extends StatelessWidget {
             todayTotal: _todayTotal,
             coupleId: coupleId,
             overBudget: overBudget,
+            isOnline: isOnline,
           ),
         ),
 
         // ── Projets en cours ─────────────────────────────────────
-        SliverToBoxAdapter(
-          child: _GoalsCard(goals: goals),
-        ),
+        SliverToBoxAdapter(child: _GoalsCard(goals: goals)),
 
         // ── Titre transactions récentes ──────────────────────────
         SliverToBoxAdapter(
@@ -145,7 +148,9 @@ class _Body extends StatelessWidget {
                   onTap: () => context.go('/history'),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 5),
+                      horizontal: 12,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
                       color: _kPrimary.withValues(alpha: .08),
                       borderRadius: BorderRadius.circular(20),
@@ -230,6 +235,7 @@ class _Header extends StatelessWidget {
   final double todayTotal;
   final String? coupleId;
   final bool overBudget;
+  final bool isOnline;
 
   const _Header({
     required this.userName,
@@ -242,6 +248,7 @@ class _Header extends StatelessWidget {
     required this.todayTotal,
     required this.coupleId,
     required this.overBudget,
+    required this.isOnline,
   });
 
   static final _fmt = NumberFormat.decimalPattern('fr_FR');
@@ -254,17 +261,13 @@ class _Header extends StatelessWidget {
     return 'Bonsoir';
   }
 
-  String _cap(String s) =>
-      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+  String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
   void _showBudgetDialog(BuildContext context) {
     if (coupleId == null) return;
     showDialog<void>(
       context: context,
-      builder: (_) => _BudgetDialog(
-        initialBudget: budget,
-        coupleId: coupleId!,
-      ),
+      builder: (_) => _BudgetDialog(initialBudget: budget, coupleId: coupleId!),
     );
   }
 
@@ -306,6 +309,20 @@ class _Header extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .18),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isOnline ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
+                  color: Colors.white,
+                  size: 19,
+                ),
+              ),
+              const SizedBox(width: 10),
               GestureDetector(
                 onTap: () => context.go('/settings'),
                 child: Container(
@@ -315,8 +332,11 @@ class _Header extends StatelessWidget {
                     color: Colors.white.withValues(alpha: .18),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.settings_outlined,
-                      color: Colors.white, size: 19),
+                  child: const Icon(
+                    Icons.settings_outlined,
+                    color: Colors.white,
+                    size: 19,
+                  ),
                 ),
               ),
             ],
@@ -335,10 +355,7 @@ class _Header extends StatelessWidget {
                   children: [
                     const Text(
                       'Budget du mois',
-                      style: TextStyle(
-                        color: Color(0xCCFFFFFF),
-                        fontSize: 11,
-                      ),
+                      style: TextStyle(color: Color(0xCCFFFFFF), fontSize: 11),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -401,14 +418,15 @@ class _Header extends StatelessWidget {
             children: [
               Text(
                 '${_f(spent)} dépensé',
-                style: const TextStyle(
-                    color: Color(0xCCFFFFFF), fontSize: 10),
+                style: const TextStyle(color: Color(0xCCFFFFFF), fontSize: 10),
               ),
               if (budget > 0)
                 Text(
                   '$daysLeft j restants',
                   style: const TextStyle(
-                      color: Color(0xCCFFFFFF), fontSize: 10),
+                    color: Color(0xCCFFFFFF),
+                    fontSize: 10,
+                  ),
                 ),
             ],
           ),
@@ -500,8 +518,8 @@ class _GoalsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final inProgress = goals.where((g) => g.progress < 1.0).toList();
-    final completed  = goals.where((g) => g.progress >= 1.0).length;
-    final preview    = inProgress.take(3).toList();
+    final completed = goals.where((g) => g.progress >= 1.0).length;
+    final preview = inProgress.take(3).toList();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
@@ -524,7 +542,9 @@ class _GoalsCard extends StatelessWidget {
                 onTap: () => context.go('/goals'),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 5),
+                    horizontal: 12,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: _kPrimary.withValues(alpha: .08),
                     borderRadius: BorderRadius.circular(20),
@@ -584,8 +604,7 @@ class _GoalsCard extends StatelessWidget {
 
                 if (goals.isEmpty) ...[
                   const SizedBox(height: 24),
-                  const Icon(Icons.flag_outlined,
-                      color: _kGray, size: 36),
+                  const Icon(Icons.flag_outlined, color: _kGray, size: 36),
                   const SizedBox(height: 8),
                   const Text(
                     'Aucun projet pour le moment',
@@ -596,7 +615,9 @@ class _GoalsCard extends StatelessWidget {
                     onTap: () => context.go('/goals'),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: _kPrimary.withValues(alpha: .08),
                         borderRadius: BorderRadius.circular(10),
@@ -632,8 +653,11 @@ class _GoalStat extends StatelessWidget {
   final String value;
   final String label;
   final Color color;
-  const _GoalStat(
-      {required this.value, required this.label, required this.color});
+  const _GoalStat({
+    required this.value,
+    required this.label,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -649,10 +673,7 @@ class _GoalStat extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 11, color: _kGray),
-          ),
+          Text(label, style: const TextStyle(fontSize: 11, color: _kGray)),
         ],
       ),
     );
@@ -662,11 +683,7 @@ class _GoalStat extends StatelessWidget {
 class _GoalDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 36,
-      color: const Color(0xFFF1F5F9),
-    );
+    return Container(width: 1, height: 36, color: const Color(0xFFF1F5F9));
   }
 }
 
@@ -694,8 +711,7 @@ class _GoalRow extends StatelessWidget {
                   color: goal.color.withValues(alpha: .12),
                   borderRadius: BorderRadius.circular(9),
                 ),
-                child: Icon(Icons.flag_rounded,
-                    color: goal.color, size: 16),
+                child: Icon(Icons.flag_rounded, color: goal.color, size: 16),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -831,14 +847,13 @@ class _ExpenseTile extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 7, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
                   color: _kPrimary.withValues(alpha: .08),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  expense.payerName,
+                  'Par ${expense.payerName}',
                   style: const TextStyle(
                     fontSize: 10,
                     color: _kPrimary,
@@ -874,8 +889,11 @@ class _ErrorBody extends StatelessWidget {
                 color: _kOrange.withValues(alpha: .1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.cloud_off_rounded,
-                  color: _kOrange, size: 34),
+              child: const Icon(
+                Icons.cloud_off_rounded,
+                color: _kOrange,
+                size: 34,
+              ),
             ),
             const SizedBox(height: 16),
             const Text(
@@ -931,8 +949,7 @@ class _BudgetDialogState extends State<_BudgetDialog> {
   }
 
   Future<void> _save() async {
-    final amount =
-        double.tryParse(_controller.text.replaceAll(' ', ''));
+    final amount = double.tryParse(_controller.text.replaceAll(' ', ''));
     if (amount == null || amount <= 0) return;
     setState(() => _saving = true);
     await updateBudget(widget.coupleId, amount);
@@ -971,8 +988,7 @@ class _BudgetDialogState extends State<_BudgetDialog> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide:
-                    const BorderSide(color: _kPrimary, width: 1.5),
+                borderSide: const BorderSide(color: _kPrimary, width: 1.5),
               ),
             ),
           ),
@@ -990,14 +1006,17 @@ class _BudgetDialogState extends State<_BudgetDialog> {
             foregroundColor: Colors.white,
             elevation: 0,
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
           child: _saving
               ? const SizedBox(
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white),
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 )
               : const Text('Enregistrer'),
         ),

@@ -21,7 +21,13 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   DateTime _date = DateTime.now();
   bool _isLoading = false;
 
-  static const _primary = Color(0xFF6C63FF);
+  static const _primary = Color(0xFF5B52EE);
+  static const _secondary = Color(0xFF7C73F6);
+  static const _bg = Color(0xFFF4F6FB);
+  static const _card = Colors.white;
+  static const _dark = Color(0xFF0F172A);
+  static const _muted = Color(0xFF64748B);
+  static const _border = Color(0xFFE5EAF3);
 
   @override
   void dispose() {
@@ -45,314 +51,621 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     setState(() => _isLoading = true);
     try {
-      await ref.read(addExpenseProvider.notifier).addExpense(
+      final coupleId = await ref.read(coupleFutureProvider.future);
+      final creatorName = (couple.userName?.isNotEmpty ?? false)
+          ? couple.userName!
+          : 'Moi';
+
+      await ref
+          .read(addExpenseProvider.notifier)
+          .addExpense(
             Expense(
               id: '',
               amount: amount,
               category: _category,
-              payerName: couple.userName ?? 'Moi',
+              payerName: creatorName,
+              creatorName: creatorName,
               date: _date,
               note: _noteController.text.trim().isEmpty
                   ? null
                   : _noteController.text.trim(),
               userId: couple.userId!,
+              coupleId: coupleId,
             ),
           );
+
       if (mounted) context.go('/dashboard');
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Erreur: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now(),
+      locale: const Locale('fr', 'FR'),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.light(
+            primary: _primary,
+            surface: Colors.white,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) {
+      setState(() => _date = picked);
+    }
+  }
+
+  void _formatAmount(String value) {
+    final clean = value.replaceAll(RegExp(r'[^0-9]'), '');
+    if (clean.isEmpty) {
+      _amountController.value = const TextEditingValue(text: '');
+      return;
+    }
+    final formatted = NumberFormat('#,###', 'fr_FR').format(int.parse(clean));
+    _amountController.value = TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+
+  String get _formattedDate => DateFormat('d MMMM yyyy', 'fr_FR').format(_date);
+
+  String get _amountPreview {
+    final raw = _amountController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (raw.isEmpty) return '0 F';
+    return '${NumberFormat('#,###', 'fr_FR').format(int.parse(raw))} F';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: GestureDetector(
+      backgroundColor: _bg,
+      bottomNavigationBar: _buildBottomAction(),
+      body: SafeArea(
+        bottom: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildTopBar(),
+              const SizedBox(height: 20),
+              _buildHeroCard(),
+              const SizedBox(height: 18),
+              _buildMetaStrip(),
+              const SizedBox(height: 18),
+              _buildSectionCard(
+                title: 'Catégorie',
+                subtitle:
+                    'Choisis le type de dépense pour mieux suivre le budget.',
+                child: _buildCategoryGrid(),
+              ),
+              const SizedBox(height: 16),
+              _buildSectionCard(
+                title: 'Note',
+                subtitle: 'Ajoute un petit contexte si nécessaire.',
+                child: _buildNoteField(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopBar() {
+    return Row(
+      children: [
+        GestureDetector(
           onTap: () => context.go('/dashboard'),
           child: Container(
-            margin: const EdgeInsets.all(8),
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              boxShadow: const [
-                BoxShadow(
-                    color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 2))
-              ],
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _border),
             ),
-            child: const Icon(Icons.arrow_back_ios_new_rounded,
-                size: 18, color: Color(0xFF1A1A2E)),
+            child: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              size: 18,
+              color: _dark,
+            ),
           ),
         ),
-        title: const Text(
-          'Ajouter une dépense',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF1A1A2E),
+        const SizedBox(width: 14),
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Nouvelle dépense',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: _dark,
+                  letterSpacing: -0.4,
+                ),
+              ),
+              SizedBox(height: 3),
+              Text(
+                'Enregistre une sortie en quelques secondes.',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: _muted,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
         ),
-        centerTitle: true,
+      ],
+    );
+  }
+
+  Widget _buildHeroCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
+      decoration: BoxDecoration(
+        color: _card,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: _primary.withValues(alpha: .24),
+            blurRadius: 28,
+            offset: const Offset(0, 18),
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: _category.color.withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: _category.color.withValues(alpha: .18),
+                  ),
+                ),
+                child: Icon(_category.icon, color: _category.color, size: 30),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: _primary.withValues(alpha: .08),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  _category.displayName,
+                  style: TextStyle(
+                    color: _category.color,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 22),
+          const Text(
+            'Montant',
+            style: TextStyle(
+              color: _muted,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _amountController,
+            keyboardType: TextInputType.number,
+            style: const TextStyle(
+              fontSize: 42,
+              fontWeight: FontWeight.w900,
+              color: _dark,
+              letterSpacing: -1,
+            ),
+            decoration: const InputDecoration(
+              hintText: '0',
+              hintStyle: TextStyle(
+                color: Color(0xFFCBD5E1),
+                fontSize: 42,
+                fontWeight: FontWeight.w900,
+              ),
+              border: InputBorder.none,
+              isCollapsed: true,
+            ),
+            onChanged: _formatAmount,
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: _primary.withValues(alpha: .08),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Text(
+                  'FCFA',
+                  style: TextStyle(
+                    color: _primary,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Ajoute le montant exact pour garder un historique propre.',
+                  style: TextStyle(
+                    color: _muted,
+                    fontSize: 12,
+                    height: 1.35,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetaStrip() {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildMetaCard(
+            icon: Icons.calendar_month_rounded,
+            label: 'Date',
+            value: _formattedDate,
+            color: _primary,
+            onTap: _pickDate,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildMetaCard(
+            icon: _category.icon,
+            label: 'Aperçu',
+            value: _amountPreview,
+            color: _category.color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetaCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+    VoidCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: _card,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _border),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF0F172A).withValues(alpha: .04),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
           children: [
-            // ── Saisie du montant ─────────────────────────────
-            Center(
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: .1),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      color: _primary.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Icon(
-                        _category.icon,
-                        size: 44,
-                        color: _primary,
-                      ),
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: _muted,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  IntrinsicWidth(
-                    child: TextField(
-                      controller: _amountController,
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 36,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1A1A2E),
-                      ),
-                      decoration: const InputDecoration(
-                        hintText: '0',
-                        hintStyle: TextStyle(
-                          fontSize: 36,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFFD1D5DB),
-                        ),
-                        suffix: Text(
-                          ' FCFA',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF9CA3AF),
-                          ),
-                        ),
-                        border: InputBorder.none,
-                      ),
-                      onChanged: (v) {
-                        final clean = v.replaceAll(RegExp(r'[^0-9]'), '');
-                        if (clean.isEmpty) return;
-                        final formatted =
-                            NumberFormat('#,###', 'fr_FR').format(int.parse(clean));
-                        _amountController.value = TextEditingValue(
-                          text: formatted,
-                          selection:
-                              TextSelection.collapsed(offset: formatted.length),
-                        );
-                      },
+                  const SizedBox(height: 4),
+                  Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: _dark,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 28),
+            if (onTap != null)
+              const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8)),
+          ],
+        ),
+      ),
+    );
+  }
 
-            // ── Catégorie ─────────────────────────────────────
-            const Text(
-              'Catégorie',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1A1A2E),
-              ),
+  Widget _buildSectionCard({
+    required String title,
+    required String subtitle,
+    required Widget child,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+      decoration: BoxDecoration(
+        color: _card,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: _border),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: .04),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: _dark,
             ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 80,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: ExpenseCategory.values.map((cat) {
-                  final sel = _category == cat;
-                  return GestureDetector(
-                    onTap: () => setState(() => _category = cat),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      margin: const EdgeInsets.only(right: 12),
-                      width: 68,
-                      decoration: BoxDecoration(
-                        color: sel
-                            ? cat.color.withValues(alpha: 0.15)
-                            : Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: sel ? cat.color : const Color(0xFFE5E7EB),
-                          width: sel ? 1.5 : 1,
-                        ),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(cat.icon,
-                              color: sel ? cat.color : const Color(0xFFB0B8C1),
-                              size: 24),
-                          const SizedBox(height: 6),
-                          Text(
-                            cat.displayName,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: sel
-                                  ? FontWeight.w600
-                                  : FontWeight.normal,
-                              color: sel
-                                  ? cat.color
-                                  : const Color(0xFF9CA3AF),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-            const SizedBox(height: 24),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: const TextStyle(fontSize: 12, color: _muted, height: 1.4),
+          ),
+          const SizedBox(height: 18),
+          child,
+        ],
+      ),
+    );
+  }
 
-            const SizedBox(height: 0),
-
-            // ── Date ──────────────────────────────────────────
-            const Text(
-              'Date',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1A1A2E),
-              ),
-            ),
-            const SizedBox(height: 12),
-            GestureDetector(
-              onTap: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: _date,
-                  firstDate:
-                      DateTime.now().subtract(const Duration(days: 365)),
-                  lastDate: DateTime.now(),
-                  builder: (context, child) => Theme(
-                    data: Theme.of(context).copyWith(
-                      colorScheme: const ColorScheme.light(
-                        primary: _primary,
-                      ),
-                    ),
-                    child: child!,
-                  ),
-                );
-                if (picked != null) setState(() => _date = picked);
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 14),
+  Widget _buildCategoryGrid() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final itemWidth = (constraints.maxWidth - 12) / 2;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: ExpenseCategory.values.map((cat) {
+            final isSelected = _category == cat;
+            return GestureDetector(
+              onTap: () => setState(() => _category = cat),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                width: itemWidth,
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                  color: isSelected ? cat.color.withValues(alpha: .1) : _bg,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isSelected ? cat.color : _border,
+                    width: isSelected ? 1.5 : 1,
+                  ),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.calendar_today_rounded,
-                        size: 18, color: _primary),
-                    const SizedBox(width: 12),
-                    Text(
-                      DateFormat('EEEE d MMMM yyyy', 'fr_FR').format(_date),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF1A1A2E),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 220),
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: cat.color.withValues(
+                          alpha: isSelected ? .18 : .1,
+                        ),
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                      child: Icon(cat.icon, color: cat.color, size: 18),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        cat.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: isSelected ? cat.color : _dark,
+                        ),
                       ),
                     ),
+                    if (isSelected)
+                      Icon(
+                        Icons.check_circle_rounded,
+                        color: cat.color,
+                        size: 20,
+                      ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
 
-            // ── Note ─────────────────────────────────────────
-            const Text(
-              'Note (optionnel)',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1A1A2E),
-              ),
+  Widget _buildNoteField() {
+    return TextField(
+      controller: _noteController,
+      maxLines: 4,
+      maxLength: 150,
+      style: const TextStyle(fontSize: 14, color: _dark, height: 1.5),
+      decoration: InputDecoration(
+        hintText: 'Ex: Courses du week-end, taxi pour le bureau...',
+        hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+        filled: true,
+        fillColor: _bg,
+        contentPadding: const EdgeInsets.all(16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: _border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: _border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(
+            color: _primary.withValues(alpha: .8),
+            width: 1.5,
+          ),
+        ),
+        counterStyle: const TextStyle(
+          color: _muted,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomAction() {
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x140F172A),
+              blurRadius: 20,
+              offset: Offset(0, -6),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                const Text(
+                  'Montant saisi',
+                  style: TextStyle(
+                    color: _muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  _amountPreview,
+                  style: TextStyle(
+                    color: _category.color,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _noteController,
-              maxLines: 2,
-              style: const TextStyle(fontSize: 14),
-              decoration: InputDecoration(
-                hintText: 'Ajoute une note…',
-                hintStyle:
-                    const TextStyle(color: Color(0xFFB0B8C1), fontSize: 14),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+            Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [_primary, _secondary],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: _primary, width: 1.5),
-                ),
-                contentPadding: const EdgeInsets.all(14),
-              ),
-            ),
-            const SizedBox(height: 32),
-
-            // ── Bouton Ajouter ────────────────────────────────
-            SizedBox(
-              width: double.infinity,
-              height: 54,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _save,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _primary,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: _primary.withValues(alpha: .28),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
                   ),
-                  disabledBackgroundColor: _primary.withValues(alpha: 0.5),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _isLoading ? null : _save,
+                  borderRadius: BorderRadius.circular(18),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 58,
+                    child: Center(
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.6,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              'Ajouter la dépense',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                    ),
+                  ),
                 ),
-                child: _isLoading
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text(
-                        'Ajouter',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600),
-                      ),
               ),
             ),
           ],
