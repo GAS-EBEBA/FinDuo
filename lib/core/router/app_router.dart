@@ -27,13 +27,15 @@ class _RouterNotifier extends ChangeNotifier {
     _ref.listen<AsyncValue>(licenseStreamProvider,  (_, _) => notifyListeners());
   }
 
-  bool    get _authLoading    => _ref.read(authStateProvider).isLoading;
-  bool    get _coupleLoading  => _ref.read(coupleFutureProvider).isLoading;
-  bool    get _licenseLoading => _ref.read(licenseStreamProvider).isLoading;
-  bool    get isLoggedIn      => _ref.read(authStateProvider).asData?.value != null;
-  String? get coupleId        => _ref.read(coupleFutureProvider).asData?.value;
-  bool    get hasLicense      => _ref.read(licenseStreamProvider).asData?.value ?? false;
-  bool    get isAdmin         => FirebaseAuth.instance.currentUser?.email == AdminConfig.adminEmail;
+  bool    get _authLoading     => _ref.read(authStateProvider).isLoading;
+  bool    get _coupleLoading   => _ref.read(coupleFutureProvider).isLoading;
+  bool    get _coupleHasError  => _ref.read(coupleFutureProvider).hasError;
+  bool    get _licenseLoading  => _ref.read(licenseStreamProvider).isLoading;
+  bool    get _licenseHasError => _ref.read(licenseStreamProvider).hasError;
+  bool    get isLoggedIn       => _ref.read(authStateProvider).asData?.value != null;
+  String? get coupleId         => _ref.read(coupleFutureProvider).asData?.value;
+  bool    get hasLicense       => _ref.read(licenseStreamProvider).asData?.value ?? false;
+  bool    get isAdmin          => FirebaseAuth.instance.currentUser?.email == AdminConfig.adminEmail;
 
   String? redirect(String location) {
     if (_authLoading) return null;
@@ -45,14 +47,15 @@ class _RouterNotifier extends ChangeNotifier {
 
     // Connecté sur /login → rediriger
     if (location == '/login') {
-      if (_coupleLoading) return null;
+      if (_coupleLoading || _coupleHasError) return null;
       if (coupleId == null) return '/onboarding';
       if (isAdmin) return '/dashboard';
-      if (_licenseLoading) return null;
+      if (_licenseLoading || _licenseHasError) return null;
       return hasLicense ? '/dashboard' : '/license';
     }
 
-    if (_coupleLoading) return null;
+    // En cas d'erreur provider (ex: hors ligne), on ne redirige pas
+    if (_coupleLoading || _coupleHasError) return null;
 
     // Pas de couple → onboarding
     if (coupleId == null) {
@@ -65,7 +68,7 @@ class _RouterNotifier extends ChangeNotifier {
       return null;
     }
 
-    if (_licenseLoading) return null;
+    if (_licenseLoading || _licenseHasError) return null;
 
     // Pas de licence valide → écran licence
     if (!hasLicense) {

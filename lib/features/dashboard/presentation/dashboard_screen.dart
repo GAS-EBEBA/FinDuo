@@ -8,6 +8,7 @@ import 'package:gestionbudget/shared/providers/connectivity_provider.dart';
 import 'package:gestionbudget/shared/providers/couple_provider.dart';
 import 'package:gestionbudget/shared/providers/expenses_provider.dart';
 import 'package:gestionbudget/shared/providers/goals_provider.dart';
+import 'package:gestionbudget/shared/utils/firestore_write.dart';
 import 'package:gestionbudget/shared/widgets/app_bottom_nav.dart';
 
 const _kPrimary = Color(0xFF5B52EE);
@@ -919,16 +920,16 @@ class _ErrorBody extends StatelessWidget {
 }
 
 // ── Dialog budget ───────────────────────────────────────────────
-class _BudgetDialog extends StatefulWidget {
+class _BudgetDialog extends ConsumerStatefulWidget {
   final double initialBudget;
   final String coupleId;
   const _BudgetDialog({required this.initialBudget, required this.coupleId});
 
   @override
-  State<_BudgetDialog> createState() => _BudgetDialogState();
+  ConsumerState<_BudgetDialog> createState() => _BudgetDialogState();
 }
 
-class _BudgetDialogState extends State<_BudgetDialog> {
+class _BudgetDialogState extends ConsumerState<_BudgetDialog> {
   late final TextEditingController _controller;
   bool _saving = false;
 
@@ -952,7 +953,8 @@ class _BudgetDialogState extends State<_BudgetDialog> {
     final amount = double.tryParse(_controller.text.replaceAll(' ', ''));
     if (amount == null || amount <= 0) return;
     setState(() => _saving = true);
-    await updateBudget(widget.coupleId, amount);
+    final isOnline = ref.read(connectivityProvider).asData?.value ?? true;
+    await guardedWrite(isOnline, () => updateBudget(widget.coupleId, amount));
     if (mounted) Navigator.pop(context);
   }
 

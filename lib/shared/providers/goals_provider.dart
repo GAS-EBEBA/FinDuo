@@ -2,7 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gestionbudget/features/goals/domain/goal_model.dart';
 import 'package:gestionbudget/features/goals/domain/planned_expense_model.dart';
+import 'package:gestionbudget/shared/providers/connectivity_provider.dart';
 import 'package:gestionbudget/shared/providers/couple_provider.dart';
+import 'package:gestionbudget/shared/utils/firestore_write.dart';
 
 /// Stream temps réel pour un projet individuel (rafraîchit le détail en live).
 final goalStreamProvider = StreamProvider.family<Goal?, String>((ref, goalId) {
@@ -106,47 +108,52 @@ class GoalsNotifier extends AsyncNotifier<void> {
   @override
   Future<void> build() async {}
 
-  Future<void> addGoal(Goal goal) async {
+  bool get _isOnline => ref.read(connectivityProvider).asData?.value ?? true;
+
+  Future<void> addGoal(Goal goal) => guardedWrite(_isOnline, () async {
     await FirebaseFirestore.instance
         .collection('goals')
         .add(goal.toFirestore());
-  }
+  });
 
-  Future<void> addFunds(String goalId, double amount) async {
-    final goalRef = FirebaseFirestore.instance.collection('goals').doc(goalId);
-    final batch = FirebaseFirestore.instance.batch();
-    // Incrémente le montant courant
-    batch.update(goalRef, {'currentAmount': FieldValue.increment(amount)});
-    // Enregistre l'alimentation dans la sous-collection
-    batch.set(goalRef.collection('fundings').doc(), {
-      'amount': amount,
-      'date': FieldValue.serverTimestamp(),
-    });
-    await batch.commit();
-  }
+  Future<void> addFunds(String goalId, double amount) =>
+      guardedWrite(_isOnline, () async {
+        final goalRef =
+            FirebaseFirestore.instance.collection('goals').doc(goalId);
+        final batch = FirebaseFirestore.instance.batch();
+        batch.update(goalRef, {'currentAmount': FieldValue.increment(amount)});
+        batch.set(goalRef.collection('fundings').doc(), {
+          'amount': amount,
+          'date': FieldValue.serverTimestamp(),
+        });
+        await batch.commit();
+      });
 
-  Future<void> archiveGoal(String goalId) async {
+  Future<void> archiveGoal(String goalId) => guardedWrite(_isOnline, () async {
     await FirebaseFirestore.instance.collection('goals').doc(goalId).update({
       'isArchived': true,
     });
-  }
+  });
 
-  Future<void> unarchiveGoal(String goalId) async {
-    await FirebaseFirestore.instance.collection('goals').doc(goalId).update({
-      'isArchived': false,
-    });
-  }
+  Future<void> unarchiveGoal(String goalId) =>
+      guardedWrite(_isOnline, () async {
+        await FirebaseFirestore.instance
+            .collection('goals')
+            .doc(goalId)
+            .update({'isArchived': false});
+      });
 
-  Future<void> deleteGoal(String goalId) async {
+  Future<void> deleteGoal(String goalId) => guardedWrite(_isOnline, () async {
     await FirebaseFirestore.instance.collection('goals').doc(goalId).delete();
-  }
+  });
 
-  Future<void> updateGoal(String goalId, Map<String, dynamic> data) async {
-    await FirebaseFirestore.instance
-        .collection('goals')
-        .doc(goalId)
-        .update(data);
-  }
+  Future<void> updateGoal(String goalId, Map<String, dynamic> data) =>
+      guardedWrite(_isOnline, () async {
+        await FirebaseFirestore.instance
+            .collection('goals')
+            .doc(goalId)
+            .update(data);
+      });
 
   Future<void> updateProjectStatus(String goalId, ProjectStatus status) async {
     await updateGoal(goalId, {'status': status.name});
@@ -172,16 +179,18 @@ class PlannedExpensesNotifier extends AsyncNotifier<void> {
   @override
   Future<void> build() async {}
 
-  Future<void> add(PlannedExpense expense) async {
+  bool get _isOnline => ref.read(connectivityProvider).asData?.value ?? true;
+
+  Future<void> add(PlannedExpense expense) => guardedWrite(_isOnline, () async {
     await FirebaseFirestore.instance
         .collection('planned_expenses')
         .add(expense.toFirestore());
-  }
+  });
 
-  Future<void> delete(String id) async {
+  Future<void> delete(String id) => guardedWrite(_isOnline, () async {
     await FirebaseFirestore.instance
         .collection('planned_expenses')
         .doc(id)
         .delete();
-  }
+  });
 }

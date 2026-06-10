@@ -4,14 +4,27 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gestionbudget/features/auth/data/auth_service.dart';
 
 /// coupleId de l'utilisateur connecté (chargé une seule fois).
+/// Tente d'abord le serveur, puis le cache local si hors ligne.
 final coupleFutureProvider = FutureProvider<String?>((ref) async {
   final user = ref.watch(authStateProvider).asData?.value;
   if (user == null) return null;
-  final doc = await FirebaseFirestore.instance
+
+  final userRef = FirebaseFirestore.instance
       .collection('users')
-      .doc(user.uid)
-      .get();
-  return doc.data()?['coupleId'] as String?;
+      .doc(user.uid);
+
+  try {
+    final doc = await userRef.get();
+    return doc.data()?['coupleId'] as String?;
+  } catch (_) {
+    // Hors ligne ou réseau indisponible : lecture depuis le cache uniquement
+    try {
+      final doc = await userRef.get(const GetOptions(source: Source.cache));
+      return doc.data()?['coupleId'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
 });
 
 /// Nom du partenaire, récupéré en temps réel depuis Firestore.

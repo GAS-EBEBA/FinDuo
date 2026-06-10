@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gestionbudget/features/expenses/domain/expense_model.dart';
+import 'package:gestionbudget/shared/providers/connectivity_provider.dart';
 import 'package:gestionbudget/shared/providers/couple_provider.dart';
+import 'package:gestionbudget/shared/utils/firestore_write.dart';
 
 final expensesStreamProvider = StreamProvider<List<Expense>>((ref) {
   final couple = ref.watch(coupleProvider);
@@ -44,20 +46,22 @@ class ExpenseNotifier extends AsyncNotifier<void> {
 
   Future<void> addExpense(Expense expense) async {
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard<void>(() async {
+    final isOnline = ref.read(connectivityProvider).asData?.value ?? true;
+    state = await AsyncValue.guard<void>(() => guardedWrite(isOnline, () async {
       await FirebaseFirestore.instance
           .collection('expenses')
           .add(expense.toFirestore());
-    });
+    }));
   }
 
   Future<void> deleteExpense(String expenseId) async {
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard<void>(() async {
+    final isOnline = ref.read(connectivityProvider).asData?.value ?? true;
+    state = await AsyncValue.guard<void>(() => guardedWrite(isOnline, () async {
       await FirebaseFirestore.instance
           .collection('expenses')
           .doc(expenseId)
           .delete();
-    });
+    }));
   }
 }
