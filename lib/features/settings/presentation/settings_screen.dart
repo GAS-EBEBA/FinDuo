@@ -411,7 +411,7 @@ class _SwitchTile extends StatelessWidget {
           Switch.adaptive(
             value: value,
             onChanged: onChanged,
-            activeThumbColor: const Color(0xFF6C63FF),
+            activeColor: const Color(0xFF6C63FF),
             activeTrackColor: const Color(0xFF6C63FF).withValues(alpha: 0.4),
           ),
         ],
