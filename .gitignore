@@ -43,3 +43,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local Node backend configuration, uploads, and generated files
+backend/.env
+backend/node_modules/
+backend/dist/
+backend/storage/uploads/
