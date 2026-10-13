@@ -11,6 +11,8 @@ import 'package:gestionbudget/features/dashboard/presentation/dashboard_screen.d
 import 'package:gestionbudget/features/expenses/presentation/add_expense_screen.dart';
 import 'package:gestionbudget/features/expenses/presentation/history_screen.dart';
 import 'package:gestionbudget/features/goals/presentation/goals_screen.dart';
+import 'package:gestionbudget/features/home/presentation/home_screen.dart';
+import 'package:gestionbudget/features/fitness/presentation/fitness_screen.dart';
 import 'package:gestionbudget/features/license/presentation/license_screen.dart';
 import 'package:gestionbudget/features/license/providers/license_provider.dart';
 import 'package:gestionbudget/features/onboarding/presentation/onboarding_screen.dart';
@@ -51,7 +53,7 @@ class _RouterNotifier extends ChangeNotifier {
       if (coupleId == null) return '/onboarding';
       if (isAdmin) return '/dashboard';
       if (_licenseLoading || _licenseHasError) return null;
-      return hasLicense ? '/dashboard' : '/license';
+      return hasLicense ? '/home' : '/license';
     }
 
     // En cas d'erreur provider (ex: hors ligne), on ne redirige pas
@@ -64,7 +66,7 @@ class _RouterNotifier extends ChangeNotifier {
 
     // L'admin bypass la vérification de licence
     if (isAdmin) {
-      if (location == '/license' || location == '/onboarding') return '/dashboard';
+      if (location == '/license' || location == '/onboarding' || location == '/dashboard') return '/home';
       return null;
     }
 
@@ -76,8 +78,8 @@ class _RouterNotifier extends ChangeNotifier {
     }
 
     // Licence OK : sortir des écrans non applicables
-    if (location == '/license' || location == '/onboarding') {
-      return '/dashboard';
+    if (location == '/license' || location == '/onboarding' || location == '/dashboard') {
+      return '/home';
     }
 
     return null;
@@ -89,13 +91,15 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.onDispose(notifier.dispose);
 
   return GoRouter(
-    initialLocation: '/dashboard',
+    initialLocation: '/home',
     refreshListenable: notifier,
     redirect: (context, state) => notifier.redirect(state.matchedLocation),
     routes: [
       GoRoute(path: '/login',       builder: (_, _) => const LoginScreen()),
       GoRoute(path: '/onboarding',  builder: (_, _) => const OnboardingScreen()),
       GoRoute(path: '/license',     builder: (_, _) => const LicenseScreen()),
+      GoRoute(path: '/home',        builder: (_, _) => const HomeScreen()),
+      GoRoute(path: '/fitness',     builder: (_, _) => const FitnessScreen()),
       GoRoute(path: '/dashboard',   builder: (_, _) => const DashboardScreen()),
       GoRoute(path: '/add-expense', builder: (_, _) => const AddExpenseScreen()),
       GoRoute(path: '/history',     builder: (_, _) => const HistoryScreen()),

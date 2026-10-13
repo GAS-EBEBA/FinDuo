@@ -38,18 +38,21 @@ class DashboardScreen extends ConsumerWidget {
       body: SafeArea(
         bottom: false,
         child: expensesAsync.when(
-          loading: () =>
-              const Center(child: CircularProgressIndicator(color: _kPrimary)),
+          loading:
+              () => const Center(
+                child: CircularProgressIndicator(color: _kPrimary),
+              ),
           error: (e, _) => _ErrorBody(message: e.toString()),
-          data: (expenses) => _Body(
-            expenses: expenses,
-            userName: couple.userName ?? 'toi',
-            partnerName: partnerName,
-            budget: budget,
-            coupleId: coupleId,
-            goals: goals,
-            isOnline: isOnline,
-          ),
+          data:
+              (expenses) => _Body(
+                expenses: expenses,
+                userName: couple.userName ?? 'toi',
+                partnerName: partnerName,
+                budget: budget,
+                coupleId: coupleId,
+                goals: goals,
+                isOnline: isOnline,
+              ),
         ),
       ),
       bottomNavigationBar: const AppBottomNav(currentIndex: 0),
@@ -321,6 +324,23 @@ class _Header extends StatelessWidget {
                   isOnline ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
                   color: Colors.white,
                   size: 19,
+                ),
+              ),
+              const SizedBox(width: 10),
+              GestureDetector(
+                onTap: () => context.go('/home'),
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: .18),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.apps_rounded,
+                    color: Colors.white,
+                    size: 19,
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
@@ -937,9 +957,10 @@ class _BudgetDialogState extends ConsumerState<_BudgetDialog> {
   void initState() {
     super.initState();
     _controller = TextEditingController(
-      text: widget.initialBudget > 0
-          ? widget.initialBudget.toInt().toString()
-          : '',
+      text:
+          widget.initialBudget > 0
+              ? widget.initialBudget.toInt().toString()
+              : '',
     );
   }
 
@@ -1011,16 +1032,17 @@ class _BudgetDialogState extends ConsumerState<_BudgetDialog> {
               borderRadius: BorderRadius.circular(12),
             ),
           ),
-          child: _saving
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : const Text('Enregistrer'),
+          child:
+              _saving
+                  ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                  : const Text('Enregistrer'),
         ),
       ],
     );
